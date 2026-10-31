@@ -19,6 +19,8 @@ import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
 import android.os.PowerManager
+import android.provider.Settings
+import java.util.concurrent.atomic.AtomicLong
 import android.os.SystemClock
 import android.support.v4.media.MediaMetadataCompat
 import android.support.v4.media.session.MediaSessionCompat
@@ -33,6 +35,8 @@ import androidx.lifecycle.LifecycleService
 import androidx.lifecycle.lifecycleScope
 import androidx.media.app.NotificationCompat as MediaNotificationCompat
 import io.github.jqssun.airplay.MainActivity
+import io.github.jqssun.airplay.floating.FloatControlActivity
+import io.github.jqssun.airplay.floating.MirrorOverlay
 import io.github.jqssun.airplay.Prefs
 import io.github.jqssun.airplay.R
 import io.github.jqssun.airplay.changes
@@ -56,7 +60,6 @@ import io.github.jqssun.airplay.renderer.AirPlayVideoPlayer
 import io.github.jqssun.airplay.renderer.AudioRenderer
 import io.github.jqssun.airplay.renderer.VideoRenderer
 import io.github.jqssun.airplay.viewmodel.DebugInfo
-import java.net.NetworkInterface
 import java.security.SecureRandom
 import kotlin.math.abs
 import kotlin.math.pow
@@ -76,6 +79,7 @@ data class VideoPlaybackInfo(
     val buffering: Boolean = false,
 )
 
+@androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
 class AirPlayService : LifecycleService(), RaopCallbackHandler, LogListener {
 
     private var nativeHandle = 0L
@@ -172,6 +176,18 @@ class AirPlayService : LifecycleService(), RaopCallbackHandler, LogListener {
     lateinit var dacpPlayer: DacpPlayer
         private set
     private val _mainHandler = Handler(Looper.getMainLooper())
+    // This fork receives screen mirroring only and never opens an audio output device.
+    private val floating by lazy {
+        MirrorOverlay(this, ::setVideoSurface, ::clearVideoSurface)
+    }
+    private val mirrorGeneration = AtomicLong()
+
+    fun moveFloating(dx: Int, dy: Int) = floating.move(dx, dy)
+    fun resizeFloating(scale: Float) = floating.resize(scale)
+    fun setFloatingOpacity(value: Float) = floating.opacity(value)
+    fun adjustFloatingOpacity(delta: Float) = floating.opacity(floating.currentOpacity() + delta)
+    fun compactFloating() = floating.compact()
+    fun floatingState() = floating.state()
     @Volatile private var _coverArtBytes: ByteArray? = null
     private var mediaSession: MediaSessionCompat? = null
     private var mediaReceiver: BroadcastReceiver? = null
@@ -217,6 +233,16 @@ class AirPlayService : LifecycleService(), RaopCallbackHandler, LogListener {
 
     override fun onCreate() {
         super.onCreate()
+        localInstance = this
+        videoRenderer.onFirstDecodedFrame = {
+            val generation = mirrorGeneration.get()
+            _mainHandler.post {
+                if (generation == mirrorGeneration.get() && _mirroringActive.value &&
+                    _serverState.value == ServerState.RUNNING) {
+                    floating.show()
+                }
+            }
+        }
         createNotificationChannel()
         dacpController = DacpController(this)
         dacpPlayer = DacpPlayer(
@@ -334,7 +360,7 @@ class AirPlayService : LifecycleService(), RaopCallbackHandler, LogListener {
         }
         lifecycleScope.launch {
             prefs.observe { this[Prefs.SYNC_CLIENT_VOLUME] }.collect {
-                _syncClientVol = it
+                _syncClientVol = false
                 _clientVolDriveEnd()
                 _applyClientVol()
             }
@@ -348,11 +374,13 @@ class AirPlayService : LifecycleService(), RaopCallbackHandler, LogListener {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        super.onStartCommand(intent, flags, startId)
         if (intent?.action == ACTION_START_SERVER) {
             promoteToForeground()
             _startServer(ensureServiceStarted = false)
             if (_serverState.value != ServerState.RUNNING) stopSelf(startId)
         }
+        if (intent?.action == ACTION_STOP_SERVER) stopServer()
         return START_NOT_STICKY
     }
 
@@ -362,6 +390,11 @@ class AirPlayService : LifecycleService(), RaopCallbackHandler, LogListener {
 
     private fun _startServer(ensureServiceStarted: Boolean) {
         if (_serverState.value == ServerState.RUNNING) return
+        if (!Settings.canDrawOverlays(this)) {
+            log("Overlay permission required")
+            _failStart()
+            return
+        }
         if (!hasLocalNetwork()) {
             log("Local network permission denied")
             _failStart()
@@ -393,7 +426,8 @@ class AirPlayService : LifecycleService(), RaopCallbackHandler, LogListener {
             _failStart()
             return
         }
-        audioRenderer.attachEngine(nativeHandle)
+        // Keep RAOP transport for iPhone compatibility, but leave its audio engine unconfigured.
+        // Without attachEngine/onAudioFormat no decoder, Oboe stream or audio focus is opened.
 
         // apply settings from preferences
         val maxFps = prefs[Prefs.MAX_FPS]
@@ -501,6 +535,7 @@ class AirPlayService : LifecycleService(), RaopCallbackHandler, LogListener {
     }
 
     private fun _failStart() {
+        floating.hide()
         audioRenderer.detachEngine()
         if (nativeHandle != 0L) {
             NativeBridge.nativeDestroy(nativeHandle)
@@ -532,6 +567,9 @@ class AirPlayService : LifecycleService(), RaopCallbackHandler, LogListener {
     }
 
     private fun _shutdown() {
+        mirrorGeneration.incrementAndGet()
+        _mirroringActive.value = false
+        floating.hide()
         audioRenderer.detachEngine()
         if (nativeHandle != 0L) {
             NativeBridge.nativeStop(nativeHandle)
@@ -625,6 +663,7 @@ class AirPlayService : LifecycleService(), RaopCallbackHandler, LogListener {
 
     override fun onDestroy() {
         stopServer()
+        if (localInstance === this) localInstance = null
         dacpPlayer.release()
         mediaReceiver?.let {
             try { unregisterReceiver(it) } catch (_: Exception) {}
@@ -652,18 +691,7 @@ class AirPlayService : LifecycleService(), RaopCallbackHandler, LogListener {
     }
 
     override fun onVideoPlay(location: String, startPositionSeconds: Float) {
-        _videoLocation.value = location
-        _videoPlaySeq.value++
-        _videoPollSuppressed = false
-        _videoPlaybackInfo.value = VideoPlaybackInfo(positionMs = (startPositionSeconds * 1000).toLong())
-        _videoPlaybackAspect.value = 16f / 9f
-        _videoPlaybackSize.value = null
-        _videoTitle.value = ""
-        _videoPlaybackActive.value = true
-        airPlayVideoPlayer.play(location, startPositionSeconds)
-        // claim media-button routing for keys that arrive as media-session events
-        mediaSession?.isActive = true
-        log("AirPlay Video play: $location @ ${startPositionSeconds}s")
+        log("Direct video handoff is disabled; use Control Center screen mirroring")
     }
 
     override fun onVideoScrub(positionSeconds: Float) {
@@ -678,14 +706,7 @@ class AirPlayService : LifecycleService(), RaopCallbackHandler, LogListener {
 
     override fun onAudioFormat(ct: Int, spf: Int, usingScreen: Boolean) {
         clearPin()
-        audioRenderer.start()
-        audioRenderer.setFormat(ct, spf)
-        if (!usingScreen) _setPlaying(true)
-        if (!usingScreen && !_audioOnly.value) {
-            // pure music streaming (not screen mirroring audio)
-            _setAudioOnly(true)
-        }
-        log("Audio format: ct=$ct spf=$spf screen=$usingScreen")
+        log("Audio transport received; local playback disabled")
     }
 
     override fun onVideoSize(srcW: Float, srcH: Float, w: Float, h: Float) {
@@ -695,19 +716,18 @@ class AirPlayService : LifecycleService(), RaopCallbackHandler, LogListener {
             _videoResolution.value = "${w.toInt()}x${h.toInt()}"
             videoRenderer.setResolution(w.toInt(), h.toInt())
             _mirroringActive.value = true
+            val generation = mirrorGeneration.get()
+            _mainHandler.post {
+                if (generation == mirrorGeneration.get() && _mirroringActive.value) {
+                    floating.receiving(w.toInt(), h.toInt())
+                }
+            }
         }
         log("Video size: ${srcW}x${srcH} -> ${w}x${h}")
     }
 
     override fun onClientVolume(db: Float) {
-        val frac = _dbToFrac(db)
-        _clientVol = frac
-        Log.d(TAG, "sender volume ${db}dB, frac $frac")
-        _mainHandler.post {
-            val driving = _clientVolTarget >= 0f
-            if (driving) _clientVolStep()
-            if (!driving || !_syncClientVol) _applyClientVol()
-        }
+        // Sender volume must never change the TV music stream.
     }
 
     override fun onClientVolumeQuery(): Float {
@@ -722,28 +742,11 @@ class AirPlayService : LifecycleService(), RaopCallbackHandler, LogListener {
 
     // synced: receiver volume broadcast then drives sender
     fun setClientVolume(frac: Float) {
-        if (_syncClientVol) {
-            audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, _serverVolIdx(frac), 0)
-            return
-        }
-        _driveClientVol(frac, if (frac > clientVolume()) 1 else -1)
+        // Intentionally fixed silent in this version.
     }
 
     private fun _applyClientVol() {
-        val frac = _clientVol
-        if (!_syncClientVol) {
-            _setClientGain(_clientGain(frac ?: 1f))
-            return
-        }
-        _setClientGain(1f)
-        if (frac == null) return
-        val cur = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
-        val idx = _serverVolIdx(frac)
-        _serverPreZeroIdx = if (idx == 0) (if (_serverPreZeroIdx < 0) cur else _serverPreZeroIdx) else -1
-        if (idx != cur) {
-            _pendingServerVolEchoes++
-            audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, idx, 0)
-        }
+        // Never change the TV stream volume in the silent mirror receiver.
     }
 
     private fun _setClientGain(gain: Float) {
@@ -794,15 +797,15 @@ class AirPlayService : LifecycleService(), RaopCallbackHandler, LogListener {
     }
 
     override fun onConnectionInit() {
-        val firstConnection = _connectionCount.value == 0
         _connectionCount.value++
         log("Sender connected (${_connectionCount.value})")
-        if (firstConnection && shouldLaunchOnConnect()) launchMainActivity()
+        // Never bring an Activity in front of the television programme on connection.
     }
 
     override fun onConnectionDestroy() {
         _connectionCount.value = (_connectionCount.value - 1).coerceAtLeast(0)
         if (_connectionCount.value == 0) {
+            endMirrorSession()
             // clients may drop without POST /stop; must run before the poll-state reset
             _endVideoPlayback("AirPlay Video stopped (disconnect)")
             // last client gone: release audio output devices to save power
@@ -818,10 +821,6 @@ class AirPlayService : LifecycleService(), RaopCallbackHandler, LogListener {
             _clientVol = null
             _mainHandler.post {
                 _clientVolDriveEnd()
-                if (_serverPreZeroIdx >= 0) {
-                    audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, _serverPreZeroIdx, 0)
-                    _serverPreZeroIdx = -1
-                }
                 _applyClientVol()
             }
             mediaSession?.isActive = false
@@ -885,29 +884,22 @@ class AirPlayService : LifecycleService(), RaopCallbackHandler, LogListener {
     }
 
     override fun onMirrorRunning(running: Boolean) {
-        if (running) videoRenderer.startSession() else {
-            videoRenderer.stopSession()
-            _mirroringActive.value = false
-        }
+        if (running) videoRenderer.startSession() else endMirrorSession()
         _setAudioOnly(!running)
     }
 
-    private fun _setAudioOnly(audioOnly: Boolean) {
-        val prev = _audioOnly.value
-        _audioOnly.value = audioOnly
-        _refreshDacpPlayer()
-        if (audioOnly && !prev) {
-            mediaSession?.isActive = true
-            log("Audio mode")
-        } else if (!audioOnly && prev) {
-            mediaSession?.isActive = false
-            _coverArtBytes = null
-            _trackInfo.value = TrackInfo()
-            _positionMs.value = 0
-            _durationMs.value = 0
-            _updateMediaNotification()
-            log("Mirror mode")
+    private fun endMirrorSession() {
+        _mirroringActive.value = false
+        val generation = mirrorGeneration.incrementAndGet()
+        videoRenderer.stopSession()
+        _mainHandler.post {
+            if (generation == mirrorGeneration.get() && !_mirroringActive.value) floating.hide()
         }
+    }
+
+    private fun _setAudioOnly(audioOnly: Boolean) {
+        _audioOnly.value = false
+        mediaSession?.isActive = false
     }
 
     private fun _updateMediaMetadata() {
@@ -1026,21 +1018,10 @@ class AirPlayService : LifecycleService(), RaopCallbackHandler, LogListener {
     // helpers
 
     private fun getHwAddr(): ByteArray {
-        try {
-            val interfaces = NetworkInterface.getNetworkInterfaces()
-            for (iface in interfaces) {
-                if (iface.name.startsWith("wlan") || iface.name.startsWith("eth")) {
-                    val mac = iface.hardwareAddress
-                    if (isUsableMac(mac)) return mac!!
-                }
-            }
-        } catch (e: Exception) {
-            Log.w(TAG, "Failed to get hardware address", e)
-        }
-
-        // fall back to stable per-install random address
-        return persistedRandomMac()
-            ?: byteArrayOf(0xAA.toByte(), 0xBB.toByte(), 0xCC.toByte(), 0xDD.toByte(), 0xEE.toByte(), 0xFF.toByte())
+        // A separate logical receiver must not share the vendor AirPlay receiver's deviceid.
+        // iOS can merge services with the same deviceid even when their visible names differ.
+        // This identifier changes no Wi-Fi/network settings and stays stable across app restarts.
+        return checkNotNull(persistedRandomMac()) { "Unable to create receiver identity" }
     }
 
     private fun isUsableMac(mac: ByteArray?): Boolean =
@@ -1106,7 +1087,7 @@ class AirPlayService : LifecycleService(), RaopCallbackHandler, LogListener {
     }
 
     private fun _buildMediaNotification(): Notification {
-        val intent = Intent(this, MainActivity::class.java)
+        val intent = Intent(this, FloatControlActivity::class.java)
         val pi = PendingIntent.getActivity(this, 0, intent, PendingIntent.FLAG_IMMUTABLE)
         val info = _trackInfo.value
         val isAudio = _audioOnly.value && info.title.isNotEmpty()
@@ -1115,6 +1096,10 @@ class AirPlayService : LifecycleService(), RaopCallbackHandler, LogListener {
             .setSmallIcon(android.R.drawable.ic_media_play)
             .setContentIntent(pi)
             .setOngoing(true)
+        val stop = PendingIntent.getService(this, 11,
+            Intent(this, AirPlayService::class.java).setAction(ACTION_STOP_SERVER),
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
+        builder.addAction(android.R.drawable.ic_menu_close_clear_cancel, "停止投屏", stop)
 
         if (isAudio) {
             builder.setContentTitle(info.title).setContentText(info.artist).setSubText(info.album)
@@ -1177,6 +1162,7 @@ class AirPlayService : LifecycleService(), RaopCallbackHandler, LogListener {
     }
 
     companion object {
+        @Volatile internal var localInstance: AirPlayService? = null
         private const val TAG = "AirPlayService"
         private const val CLIENT_VOL_EPS = 0.033f
         private const val CLIENT_VOL_MAX_STEPS = 32
@@ -1187,6 +1173,7 @@ class AirPlayService : LifecycleService(), RaopCallbackHandler, LogListener {
         const val ACTION_NEXT = "io.github.jqssun.airplay.NEXT"
         const val ACTION_PREV = "io.github.jqssun.airplay.PREV"
         const val ACTION_START_SERVER = "io.github.jqssun.airplay.START_SERVER"
+        const val ACTION_STOP_SERVER = "dev.czp.tvairplay.STOP_SERVER"
         // shared with dpad/double-tap seeks
         const val VIDEO_SEEK_STEP_MS = 10_000L
         const val VIDEO_POLL_PENDING_TIMEOUT_MS = 3_000L

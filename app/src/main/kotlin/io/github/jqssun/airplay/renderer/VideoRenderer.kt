@@ -23,6 +23,10 @@ class VideoRenderer(ctx: Context) {
     private var videoHeight = 0
     private var firstFrameQueued = false
 
+    /** Called once per decoder instance, on its worker thread. Must not block. */
+    var onFirstDecodedFrame: (() -> Unit)? = null
+    private var firstDecodedFrame = false
+
     // stats
     @Volatile var fps = 0; private set
     @Volatile var bitrateBps = 0L; private set
@@ -251,6 +255,7 @@ class VideoRenderer(ctx: Context) {
     }
 
     private fun stopCodec() {
+        firstDecodedFrame = false
         _frameIntervalIdx = 0
         _frameIntervalCount = 0
         _lastOutputFrameNs = 0L
@@ -282,6 +287,10 @@ class VideoRenderer(ctx: Context) {
                 c.releaseOutputBuffer(idx, _wallBaseNs + (ptsUs - _ptsBaseUs) * 1000L)
             } else {
                 c.releaseOutputBuffer(idx, true)
+            }
+            if (!firstDecodedFrame) {
+                firstDecodedFrame = true
+                onFirstDecodedFrame?.invoke()
             }
         }
     }

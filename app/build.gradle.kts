@@ -11,7 +11,7 @@ val localProps = Properties().apply {
     rootProject.file("local.properties").takeIf { it.exists() }?.inputStream()?.use(::load)
 }
 
-val allAbis = listOf("arm64-v8a", "armeabi-v7a", "x86_64")
+val allAbis = providers.gradleProperty("targetAbi").orNull?.split(",") ?: listOf("armeabi-v7a")
 
 android {
     namespace = "io.github.jqssun.airplay"
@@ -30,11 +30,11 @@ android {
     }
 
     defaultConfig {
-        applicationId = "io.github.jqssun.airplay"
-        minSdk = 23
+        applicationId = "dev.czp.tvairplay"
+        minSdk = 26
         targetSdk = 37
         versionCode = 36
-        versionName = "0.0.36"
+        versionName = "0.1.0-airplay-float"
 
         externalNativeBuild {
             cmake {

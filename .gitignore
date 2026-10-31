@@ -10,3 +10,10 @@
 .cxx/
 
 *.jks
+/artifacts/
+/.tools/
+
+__pycache__/
+*.pyc
+
+.kotlin/

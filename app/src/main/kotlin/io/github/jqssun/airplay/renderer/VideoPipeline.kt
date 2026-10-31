@@ -135,6 +135,7 @@ class VideoPipeline {
             // no display: keep consuming so decoder doesn't stall
             egl.makeCurrent()
             st.updateTexImage()
+            st.getTransformMatrix(texMatrix)
             hasFrame = true
             return
         }
@@ -148,6 +149,11 @@ class VideoPipeline {
     private fun _render() {
         GLES20.glViewport(0, 0, winW, winH)
         GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT)
+        // Preserve portrait/landscape geometry inside an arbitrarily sized floating window.
+        val aspect = if (videoW > 0 && videoH > 0) videoW.toFloat() / videoH else 16f / 9f
+        val drawW = minOf(winW, (winH * aspect).toInt()).coerceAtLeast(1)
+        val drawH = minOf(winH, (winW / aspect).toInt()).coerceAtLeast(1)
+        GLES20.glViewport((winW - drawW) / 2, (winH - drawH) / 2, drawW, drawH)
         GLES20.glUseProgram(program)
         GLES20.glActiveTexture(GLES20.GL_TEXTURE0)
         GLES20.glBindTexture(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, oesTex)

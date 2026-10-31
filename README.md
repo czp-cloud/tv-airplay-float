@@ -1,3 +1,7 @@
+# AirPlay 投屏小窗
+
+此工作分支是独立的小窗派生版本，使用说明、构建方法和实现范围见 [FLOATING.md](FLOATING.md)。上游 AirPlay 接收器的说明保留如下；上游功能列表不代表小窗第一版均已启用或验证。
+
 # AirPlay Receiver for Android
 
 [![Stars](https://img.shields.io/github/stars/jqssun/android-airplay-server)](https://github.com/jqssun/android-airplay-server)

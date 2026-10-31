@@ -72,12 +72,12 @@ object Prefs {
 
     fun forced(v: String) = when (v) { ON -> true; OFF -> false; else -> null }
 
-    val SERVER_NAME = str("server_name", "Android AirPlay", restart = true)
+    val SERVER_NAME = str("server_name", "电视投屏小窗", restart = true)
     val SERVER_PORT = int("server_port", 7000, 1..65535, restart = true)
-    val AUTO_START = bool("auto_start", true)
-    val BOOT_AUTO_START = bool("boot_auto_start", true)
+    val AUTO_START = bool("auto_start", false)
+    val BOOT_AUTO_START = bool("boot_auto_start", false)
     val RUN_IN_BACKGROUND = bool("run_in_background", true)
-    val H265 = tri("h265", restart = true)
+    val H265 = str("h265", OFF, restart = true) { it in setOf(AUTO, ON, OFF) }
     val ENFORCE_SDR = bool("enforce_sdr", true, restart = true)
     val KEY_ALLOW_FRAME_DROP = bool(MediaFormat.KEY_ALLOW_FRAME_DROP, true, restart = true)
     val KEY_PRIORITY = bool(MediaFormat.KEY_PRIORITY, true, restart = true)
@@ -96,12 +96,12 @@ object Prefs {
     val FORCE_SW_AAC = bool("force_sw_aac", false)
     val AAC_ENABLED = bool("aac_enabled", true, restart = true)
     // on: sender volume drives receiver volume; off: volume = receiver volume x sender volume
-    val SYNC_CLIENT_VOLUME = bool("sync_client_volume", true)
-    val RESOLUTION = str("resolution", AUTO, restart = true) { it in setOf(AUTO, PORTRAIT, LANDSCAPE) || SIZE.matches(it) }
-    val MAX_FPS = int("max_fps", 60, 1..Int.MAX_VALUE, restart = true)
+    val SYNC_CLIENT_VOLUME = bool("sync_client_volume", false)
+    val RESOLUTION = str("resolution", "1280x720", restart = true) { it in setOf(AUTO, PORTRAIT, LANDSCAPE) || SIZE.matches(it) }
+    val MAX_FPS = int("max_fps", 30, 1..Int.MAX_VALUE, restart = true)
     val OVERSCANNED = bool("overscanned", false, restart = true)
     val REQUIRE_PIN = bool("require_pin", false, restart = true)
-    val ALLOW_NEW_CONN = bool("allow_new_conn", true, restart = true)
+    val ALLOW_NEW_CONN = bool("allow_new_conn", false, restart = true)
     val AUDIO_LATENCY_MS = int("audio_latency_ms", -1, -1..1000, restart = true)
     val DEBUG_ENABLED = bool("debug_enabled", false)
     val DEVELOPER_OPTIONS = bool("developer_options", false)
@@ -109,9 +109,11 @@ object Prefs {
     val IDLE_PREVIEW = bool("idle_preview", false)
     val AUTO_FULLSCREEN = bool("auto_fullscreen", true)
     val KEEP_SCREEN_ON = bool("keep_screen_on", true)
+    // Keep the upstream capability advertisement for iOS discovery compatibility.
+    // Direct video handoff remains disabled in this screen-mirroring prototype.
     val ADVERTISE_VIDEO = bool("advertise_video", true, restart = true)
     val ADVERTISE_MIRRORING = bool("advertise_mirroring", true, restart = true)
     val ADVERTISE_AUDIO = bool("advertise_audio", true, restart = true)
-    val LAUNCH_ON_CONNECT = bool("launch_on_connect", true)
+    val LAUNCH_ON_CONNECT = bool("launch_on_connect", false)
     val USB_ONLY = bool("usb_only", false, restart = true)
 }
