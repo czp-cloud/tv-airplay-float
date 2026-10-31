@@ -34,7 +34,7 @@
 
 16:40:11–16:40:13，观察到真实 iPhone 镜像会话：334×720，H.264 厂商硬件解码，小窗自动显示，opacity=1、chrome=false；显示 Surface 更新计数由 21 增至 68。手机断开后 connections=0、mirroring=false、visible=false，系统窗口列表已无 AirPlayMirrorOverlay，接收服务仍为 RUNNING。此过程的运行时自动显示/隐藏检查通过。
 
-证据保存在 `artifacts/frameless-session/states.json` 与 `receiver.log`。计数只证明此次会话实际有画面更新，不作为帧率或延迟测量。新版亮度和无按钮外观的物理屏幕观感仍以用户现场反馈为准。
+证据保存在 `artifacts/frameless-session/states.json` 与 `receiver.log`。计数只证明此次会话实际有画面更新，不作为帧率或延迟测量。用户随后完成现场复测并确认“显示正常，断开后也消失”，确认新版画面显示、亮度恢复、无按钮外观与停止镜像后隐藏均正常。
 
 ## 边界
 
