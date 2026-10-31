@@ -21,7 +21,7 @@
 - `MirrorAudioController.kt`：仅在真实镜像会话且音频格式已到达时，申请临时独占音频焦点，再启动已有 AAC/ALAC → TimelineBuffer → Oboe 音频链；左侧、断开、永久焦点丢失或服务销毁时关闭输出并放弃焦点。短暂丢失焦点暂停本地声音，得到焦点后恢复。失败时退回电视原声；不通过全局静音伪造源切换。
 - Oboe 使用 MEDIA usage，与音频焦点属性一致。第一版没有开启的音频输出按用户选择启用；系统媒体音量与发送端音量同步仍不改动。
 
-Android 10 的焦点机制需要原播放器配合；HDMI 源可能有厂商音频路径，因此“焦点获批”和“HDMI 原声实际停下”必须分开验证。依据 [Android 官方音频焦点说明](https://developer.android.com/media/optimize/audio-focus)，不能把框架状态当作现场听感证明。某些播放器可能暂停播放而不只静音，需逐一实测。
+Android 10 的焦点机制需要原播放器配合；当前小米电视的 HDMI 组合已由用户现场确认声音可来回切换。其他 HDMI 源可能有厂商音频路径，因此“焦点获批”和“HDMI 原声实际停下”必须分开验证。依据 [Android 官方音频焦点说明](https://developer.android.com/media/optimize/audio-focus)，不能把框架状态当作现场听感证明。某些播放器可能暂停播放而不只静音，需逐一实测。
 
 ## 验证与复现
 
