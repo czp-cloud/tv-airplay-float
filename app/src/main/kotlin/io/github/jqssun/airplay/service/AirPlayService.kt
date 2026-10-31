@@ -36,6 +36,9 @@ import androidx.lifecycle.lifecycleScope
 import androidx.media.app.NotificationCompat as MediaNotificationCompat
 import io.github.jqssun.airplay.MainActivity
 import io.github.jqssun.airplay.floating.FloatControlActivity
+import io.github.jqssun.airplay.remote.MirrorAudioController
+import io.github.jqssun.airplay.remote.RemoteControlServer
+import org.json.JSONObject
 import io.github.jqssun.airplay.floating.MirrorOverlay
 import io.github.jqssun.airplay.Prefs
 import io.github.jqssun.airplay.R
@@ -176,11 +179,51 @@ class AirPlayService : LifecycleService(), RaopCallbackHandler, LogListener {
     lateinit var dacpPlayer: DacpPlayer
         private set
     private val _mainHandler = Handler(Looper.getMainLooper())
-    // This fork receives screen mirroring only and never opens an audio output device.
+    // Window, web commands, and audio policy are owned by this foreground service.
     private val floating by lazy {
         MirrorOverlay(this, ::setVideoSurface, ::clearVideoSurface)
     }
     private val mirrorGeneration = AtomicLong()
+    private val mirrorAudio by lazy { MirrorAudioController(this, audioRenderer) }
+    private var remoteServer: RemoteControlServer? = null
+    private var remoteError = ""
+
+    fun remoteState(): JSONObject = JSONObject().apply {
+        put("version", "0.2.0")
+        put("receiver", prefs[Prefs.SERVER_NAME])
+        put("server", _serverState.value.name)
+        put("mirroring", _mirroringActive.value)
+        put("overlay", floating.state())
+        put("audio", mirrorAudio.state())
+    }
+
+    // Available only to the local Activity and DUMP-protected diagnostic receiver.
+    fun remoteInfo(): JSONObject = JSONObject().apply {
+        put("urls", org.json.JSONArray(remoteServer?.urls() ?: emptyList<String>()))
+        put("pairingCode", remoteServer?.pairingCode ?: "")
+        put("error", remoteError)
+    }
+
+    private fun startRemote() {
+        if (remoteServer != null) return
+        try {
+            val server = RemoteControlServer(this, _mainHandler, ::remoteState) { action, body ->
+                when (action) {
+                    "move" -> floating.move(body.getInt("dx"), body.getInt("dy"))
+                    "size" -> floating.setWidth(body.getInt("width"))
+                    "reset" -> floating.compact()
+                    "audio" -> mirrorAudio.select(body.getString("source"))
+                }
+            }
+            server.start(5000, true)
+            remoteServer = server
+            remoteError = ""
+            log("LAN web remote listening on ${RemoteControlServer.PORT}")
+        } catch (e: Exception) {
+            remoteError = "网页遥控器启动失败，请重启接收器"
+            Log.e(TAG, "web_remote_start_failed", e)
+        }
+    }
 
     fun moveFloating(dx: Int, dy: Int) = floating.move(dx, dy)
     fun resizeFloating(scale: Float) = floating.resize(scale)
@@ -426,8 +469,8 @@ class AirPlayService : LifecycleService(), RaopCallbackHandler, LogListener {
             _failStart()
             return
         }
-        // Keep RAOP transport for iPhone compatibility, but leave its audio engine unconfigured.
-        // Without attachEngine/onAudioFormat no decoder, Oboe stream or audio focus is opened.
+        // Prepare decoding, but do not open an output stream or claim focus in TV-audio mode.
+        audioRenderer.attachEngine(nativeHandle)
 
         // apply settings from preferences
         val maxFps = prefs[Prefs.MAX_FPS]
@@ -494,6 +537,7 @@ class AirPlayService : LifecycleService(), RaopCallbackHandler, LogListener {
         }
 
         _serverState.value = ServerState.RUNNING
+        startRemote()
         if (ensureServiceStarted) {
             ContextCompat.startForegroundService(this, Intent(this, AirPlayService::class.java))
         }
@@ -536,6 +580,9 @@ class AirPlayService : LifecycleService(), RaopCallbackHandler, LogListener {
 
     private fun _failStart() {
         floating.hide()
+        remoteServer?.stop()
+        remoteServer = null
+        mirrorAudio.endSession()
         audioRenderer.detachEngine()
         if (nativeHandle != 0L) {
             NativeBridge.nativeDestroy(nativeHandle)
@@ -570,6 +617,9 @@ class AirPlayService : LifecycleService(), RaopCallbackHandler, LogListener {
         mirrorGeneration.incrementAndGet()
         _mirroringActive.value = false
         floating.hide()
+        remoteServer?.stop()
+        remoteServer = null
+        mirrorAudio.endSession()
         audioRenderer.detachEngine()
         if (nativeHandle != 0L) {
             NativeBridge.nativeStop(nativeHandle)
@@ -706,7 +756,13 @@ class AirPlayService : LifecycleService(), RaopCallbackHandler, LogListener {
 
     override fun onAudioFormat(ct: Int, spf: Int, usingScreen: Boolean) {
         clearPin()
-        log("Audio transport received; local playback disabled")
+        val generation = mirrorGeneration.get()
+        _mainHandler.post {
+            if (generation == mirrorGeneration.get() && _serverState.value == ServerState.RUNNING) {
+                mirrorAudio.onFormat(ct, spf)
+            }
+        }
+        log("Mirror audio format received (screen=$usingScreen)")
     }
 
     override fun onVideoSize(srcW: Float, srcH: Float, w: Float, h: Float) {
@@ -720,6 +776,7 @@ class AirPlayService : LifecycleService(), RaopCallbackHandler, LogListener {
             _mainHandler.post {
                 if (generation == mirrorGeneration.get() && _mirroringActive.value) {
                     floating.receiving(w.toInt(), h.toInt())
+                    mirrorAudio.onMirrorActive()
                 }
             }
         }
@@ -893,7 +950,10 @@ class AirPlayService : LifecycleService(), RaopCallbackHandler, LogListener {
         val generation = mirrorGeneration.incrementAndGet()
         videoRenderer.stopSession()
         _mainHandler.post {
-            if (generation == mirrorGeneration.get() && !_mirroringActive.value) floating.hide()
+            if (generation == mirrorGeneration.get() && !_mirroringActive.value) {
+                floating.hide()
+                mirrorAudio.endSession()
+            }
         }
     }
 
@@ -1077,7 +1137,7 @@ class AirPlayService : LifecycleService(), RaopCallbackHandler, LogListener {
             this,
             NOTIFICATION_ID,
             buildNotification(),
-            ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE
+            ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE or ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK
         )
         foregroundStarted = true
     }

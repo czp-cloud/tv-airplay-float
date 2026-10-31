@@ -33,8 +33,8 @@ android {
         applicationId = "dev.czp.tvairplay"
         minSdk = 26
         targetSdk = 37
-        versionCode = 36
-        versionName = "0.1.0-airplay-float"
+        versionCode = 37
+        versionName = "0.2.0-web-remote"
 
         externalNativeBuild {
             cmake {
@@ -112,6 +112,7 @@ tasks.configureEach {
 }
 
 dependencies {
+    implementation("org.nanohttpd:nanohttpd:2.3.1")
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.lifecycle.runtime)

@@ -39,7 +39,11 @@ class FloatControlActivity : Activity() {
             status.text = "悬浮窗：$permission　接收：$receiving\n" +
                 "镜像名称：电视投屏小窗\n" +
                 (if ((svc?.connectionCount?.value ?: 0) > 0) "手机已连接 · ${svc?.videoResolution?.value}" else "等待同一局域网内的 iPhone") +
-                "\n${if (editing) "调整中：方向键移动；返回键完成调整" else "第一版固定静音，综艺继续使用原来的声音"}"
+                "\n${if (editing) "调整中：方向键移动；返回键完成调整" else "默认电视原声，手机网页可切换投屏声音"}" +
+                (svc?.remoteInfo()?.let { info ->
+                    val urls = info.getJSONArray("urls")
+                    if (urls.length() > 0) "\n网页遥控器：${urls.getString(0)}　配对码：${info.getString("pairingCode")}" else ""
+                } ?: "")
             handler.postDelayed(this, 500)
         }
     }

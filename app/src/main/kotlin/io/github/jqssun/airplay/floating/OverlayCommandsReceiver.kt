@@ -23,6 +23,10 @@ class OverlayCommandsReceiver : BroadcastReceiver() {
             }
             "opacity" -> service?.setFloatingOpacity(intent.getFloatExtra("opacity", 1f))
             "compact" -> service?.compactFloating()
+            "web" -> {
+                setResult(Activity.RESULT_OK, service?.remoteInfo()?.toString() ?: "{}", null)
+                return
+            }
             "state" -> Unit
             else -> { setResultCode(Activity.RESULT_CANCELED); return }
         }
@@ -33,7 +37,8 @@ class OverlayCommandsReceiver : BroadcastReceiver() {
             put("mirroring", service?.mirroringActive?.value ?: false)
             put("inputFrames", service?.videoRenderer?.frameCount ?: 0)
             put("codec", service?.videoRenderer?.codecName ?: "")
-            put("audioOutput", false)
+            put("audio", service?.remoteState()?.optJSONObject("audio"))
+            put("audioOutput", service?.remoteState()?.optJSONObject("audio")?.optBoolean("outputActive") ?: false)
         }
         setResult(Activity.RESULT_OK, state.toString(), null)
     }

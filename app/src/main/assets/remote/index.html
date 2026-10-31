@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#f4f5f1">
+  <meta name="color-scheme" content="light">
+  <title>小窗 · 电视遥控器</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="/remote.css">
+  <script src="/remote.js" defer></script>
+</head>
+<body>
+  <svg class="symbols" aria-hidden="true"><defs>
+    <symbol id="i-airplay" viewBox="0 0 24 24"><path d="M5 16H3V4h18v12h-2M12 14l6 7H6z"/></symbol>
+    <symbol id="i-tv" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="13" rx="3"/><path d="M8 21h8m-4-4v4"/></symbol>
+    <symbol id="i-arrow" viewBox="0 0 24 24"><path d="m6 14 6-6 6 6"/></symbol>
+    <symbol id="i-reset" viewBox="0 0 24 24"><path d="M4 10a8 8 0 1 1 1 8M4 4v6h6"/></symbol>
+    <symbol id="i-move" viewBox="0 0 24 24"><path d="M12 3v18M3 12h18m-12-6 3-3 3 3m-6 12 3 3 3-3M6 9l-3 3 3 3m12-6 3 3-3 3"/></symbol>
+    <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="11" rx="3"/><path d="M8 10V7a4 4 0 0 1 8 0v3m-4 4v3"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></symbol>
+  </defs></svg>
+  <div class="app">
+    <header class="masthead">
+      <a href="/" class="brand" aria-label="小窗遥控器首页"><span class="brand-mark"><svg><use href="#i-airplay"/></svg></span><span>小窗<span class="brand-sub">REMOTE</span></span></a>
+      <span class="network"><i id="connectionDot"></i><span id="connectionLabel" role="status">正在连接</span></span>
+    </header>
+    <main>
+      <section class="intro"><p class="eyebrow">你的手机，就是遥控器</p><h1>小窗，随心放。</h1><p class="intro-copy">调好位置和声音，一起看更自在。</p></section>
+      <div id="authPanel" class="pair-card" hidden>
+        <span class="pair-icon"><svg><use href="#i-lock"/></svg></span>
+        <div><h2>连接你的电视</h2><p>输入电视「AirPlay 投屏小窗」控制页上的六位配对码。</p></div>
+        <form id="pairForm"><label class="sr-only" for="pairCode">六位配对码</label><input id="pairCode" name="code" type="text" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="one-time-code" placeholder="六位配对码" required><button id="pairButton" class="primary" type="submit">连接电视 <span aria-hidden="true">↗</span></button></form>
+        <p id="pairError" class="error" role="alert"></p>
+      </div>
+      <div id="dashboard" class="dashboard" inert>
+        <section class="card preview-card" aria-label="窗口预览与大小">
+          <div class="card-heading"><h2><span class="section-dot"></span>电视上的小窗</h2><span id="mirrorBadge" class="badge">等待投屏</span></div>
+          <div class="stage" id="stage" role="img" aria-label="电视画面与小窗位置示意">
+            <div class="stage-glow"></div><div class="stage-label"><svg><use href="#i-tv"/></svg><span>电视画面</span></div>
+            <div id="miniWindow" class="mini-window idle"><svg><use href="#i-airplay"/></svg></div>
+            <div class="stage-bottom"><span id="stageStatus">位置预览</span><span class="stage-dots"><i></i><i></i><i></i></span></div>
+          </div>
+          <div class="size-control"><div class="control-heading"><label for="sizeSlider">窗口大小</label><output id="sizeValue" for="sizeSlider">—</output></div>
+            <input id="sizeSlider" type="range" min="240" max="1536" value="320" step="1" aria-describedby="sizeHelp">
+            <div class="range-labels"><span>小一点</span><span>大一点</span></div>
+            <p id="sizeHelp" class="hint">没有投屏时，小窗自动隐藏；调整的位置仍会保存。</p>
+          </div>
+        </section>
+        <section class="card position-card" aria-labelledby="positionTitle">
+          <div class="card-heading"><h2 id="positionTitle"><svg><use href="#i-move"/></svg>移动位置</h2><span class="quiet-label">轻触 / 长按</span></div>
+          <div class="joystick" id="joystick">
+            <div class="pad-ring"></div>
+            <button class="direction up" data-dx="0" data-dy="-24" aria-label="向上移动"><svg><use href="#i-arrow"/></svg></button>
+            <button class="direction left" data-dx="-24" data-dy="0" aria-label="向左移动"><svg><use href="#i-arrow"/></svg></button>
+            <button id="stick" class="stick" aria-label="拖动摇杆移动小窗"><span class="stick-grip"><i></i><i></i><i></i><i></i></span></button>
+            <button class="direction right" data-dx="24" data-dy="0" aria-label="向右移动"><svg><use href="#i-arrow"/></svg></button>
+            <button class="direction down" data-dx="0" data-dy="24" aria-label="向下移动"><svg><use href="#i-arrow"/></svg></button>
+          </div>
+          <div class="position-footer"><span class="hint">也可以拖动中央摇杆</span><button id="resetButton" class="text-button"><svg><use href="#i-reset"/></svg>恢复右上角</button></div>
+        </section>
+        <section class="card audio-card" aria-labelledby="audioTitle">
+          <div class="card-heading"><h2 id="audioTitle">声音从哪里来</h2><span class="audio-tag">二选一</span></div>
+          <button id="audioSwitch" class="audio-switch" role="switch" aria-checked="false" aria-label="播放投屏声音" aria-describedby="audioHelp"><span class="switch-thumb"></span><span class="audio-choice tv"><svg><use href="#i-tv"/></svg>电视原声</span><span class="audio-choice mirror"><svg><use href="#i-airplay"/></svg>投屏声音</span></button>
+          <p id="audioHelp" class="hint"><span class="tiny-dot"></span><span id="audioMessage">正在播放电视原声</span></p>
+        </section>
+      </div>
+      <div id="toast" class="toast" role="status" hidden></div>
+      <footer class="footer"><span><i></i>仅在你的局域网中连接</span><button id="disconnectButton" class="text-button" hidden>退出遥控器</button><span class="version">小窗 v2</span></footer>
+    </main>
+  </div>
+</body>
+</html>

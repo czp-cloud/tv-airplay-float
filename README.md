@@ -1,6 +1,6 @@
 # AirPlay 投屏小窗
 
-此工作分支是独立的小窗派生版本，使用说明、构建方法和实现范围见 [FLOATING.md](FLOATING.md)。上游 AirPlay 接收器的说明保留如下；上游功能列表不代表小窗第一版均已启用或验证。
+此工作分支是独立的小窗派生版本，使用说明、构建方法和实现范围见 [FLOATING.md](FLOATING.md)。上游 AirPlay 接收器的说明保留如下；第二版手机网页遥控器见 [WEB_REMOTE.md](WEB_REMOTE.md)。上游功能列表不代表本派生版本均已启用或验证。
 
 # AirPlay Receiver for Android
 

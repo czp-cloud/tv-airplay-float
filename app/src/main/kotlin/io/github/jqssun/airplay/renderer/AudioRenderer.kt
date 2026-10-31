@@ -28,9 +28,9 @@ class AudioRenderer {
 
     // open playout (first onAudioFormat, or resume after pause); idempotent natively
     @Synchronized
-    fun start() {
-        if (serverHandle == 0L) return
-        NativeBridge.nativeServerAudioStart(serverHandle)
+    fun start(): Boolean {
+        if (serverHandle == 0L) return false
+        return NativeBridge.nativeServerAudioStart(serverHandle)
     }
 
     // releases oboe stream + audio device while idle; engine stays alive, freed on server destroy

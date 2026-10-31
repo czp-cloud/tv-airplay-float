@@ -136,12 +136,13 @@ private:
             ->setChannelCount(mChannels)
             ->setSampleRate(mSampleRate)
             ->setSampleRateConversionQuality(oboe::SampleRateConversionQuality::Medium)
+            ->setUsage(oboe::Usage::Media)
             ->setContentType(oboe::ContentType::Music)
             ->setDataCallback(mCallbacks)
             ->setErrorCallback(mCallbacks);
         if (mLowLatency) {
-            // game use case may enable extra latency optimizations
-            b.setPerformanceMode(oboe::PerformanceMode::LowLatency)->setUsage(oboe::Usage::Game);
+            // Keep media usage consistent with the Android audio-focus request.
+            b.setPerformanceMode(oboe::PerformanceMode::LowLatency);
         } else {
             // media use case may have better quality and lower power
             b.setPerformanceMode(oboe::PerformanceMode::PowerSaving)->setUsage(oboe::Usage::Media);

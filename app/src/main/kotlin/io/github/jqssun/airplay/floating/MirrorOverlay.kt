@@ -129,6 +129,11 @@ class MirrorOverlay(
         update()
     }
 
+    fun setWidth(width: Int) {
+        params.width = width
+        update()
+    }
+
     fun opacity(value: Float) {
         if (!value.isFinite()) return
         params.alpha = value.coerceIn(0.12f, 1f)
@@ -169,6 +174,10 @@ class MirrorOverlay(
 
     fun state(): JSONObject = JSONObject().apply {
         clamp()
+        val s = screen()
+        put("screenWidth", s.x); put("screenHeight", s.y)
+        put("maxWidth", minOf(s.x * 4 / 5, s.y * 16 / 9))
+        put("minWidth", minOf(dp(120), minOf(s.x * 4 / 5, s.y * 16 / 9)))
         put("visible", root != null)
         put("videoSize", videoSize)
         put("surfaceUpdates", surfaceUpdates)
