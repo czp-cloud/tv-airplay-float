@@ -189,7 +189,7 @@ class AirPlayService : LifecycleService(), RaopCallbackHandler, LogListener {
     private var remoteError = ""
 
     fun remoteState(): JSONObject = JSONObject().apply {
-        put("version", "0.2.0")
+        put("version", "0.2.1")
         put("receiver", prefs[Prefs.SERVER_NAME])
         put("server", _serverState.value.name)
         put("mirroring", _mirroringActive.value)
@@ -200,8 +200,25 @@ class AirPlayService : LifecycleService(), RaopCallbackHandler, LogListener {
     // Available only to the local Activity and DUMP-protected diagnostic receiver.
     fun remoteInfo(): JSONObject = JSONObject().apply {
         put("urls", org.json.JSONArray(remoteServer?.urls() ?: emptyList<String>()))
-        put("pairingCode", remoteServer?.pairingCode ?: "")
         put("error", remoteError)
+    }
+
+    /** Read-only output capabilities for TV-specific audio research; DUMP-protected access only. */
+    fun audioDevices(): JSONObject = JSONObject().apply {
+        put("volumeFixed", audioManager.isVolumeFixed)
+        put("outputs", org.json.JSONArray().apply {
+            audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS).forEach { device ->
+                put(JSONObject().apply {
+                    put("id", device.id)
+                    put("type", device.type)
+                    put("name", device.productName.toString())
+                    put("channelCounts", org.json.JSONArray(device.channelCounts.toList()))
+                    put("channelMasks", org.json.JSONArray(device.channelMasks.toList()))
+                    put("sampleRates", org.json.JSONArray(device.sampleRates.toList()))
+                    if (Build.VERSION.SDK_INT >= 28) put("address", device.address)
+                })
+            }
+        })
     }
 
     private fun startRemote() {
@@ -213,6 +230,7 @@ class AirPlayService : LifecycleService(), RaopCallbackHandler, LogListener {
                     "size" -> floating.setWidth(body.getInt("width"))
                     "reset" -> floating.compact()
                     "audio" -> mirrorAudio.select(body.getString("source"))
+                    "volume" -> mirrorAudio.setVolume(body.getInt("volume"))
                 }
             }
             server.start(5000, true)

@@ -11,6 +11,8 @@ import org.json.JSONObject
 
 /** Main-thread audio policy. Never mutes or changes the shared TV volume. */
 class MirrorAudioController(context: Context, private val renderer: AudioRenderer) {
+    private val prefs = context.getSharedPreferences("mirror_audio", Context.MODE_PRIVATE)
+    private var volume = prefs.getInt("volume", 100).coerceIn(0, 100)
     private val manager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
     private var requested = "tv"
     private var mirrorActive = false
@@ -41,6 +43,16 @@ class MirrorAudioController(context: Context, private val renderer: AudioRendere
         .setAcceptsDelayedFocusGain(false)
         .setOnAudioFocusChangeListener(listener, Handler(Looper.getMainLooper()))
         .build()
+
+    init { renderer.setClientGain(volume / 100f) }
+
+    fun setVolume(value: Int) {
+        require(value in 0..100)
+        volume = value
+        // Per-receiver PCM gain; never writes AudioManager's shared music-stream volume.
+        renderer.setClientGain(volume / 100f)
+        prefs.edit().putInt("volume", volume).apply()
+    }
 
     fun select(source: String) {
         require(source == "tv" || source == "mirror")
@@ -94,7 +106,7 @@ class MirrorAudioController(context: Context, private val renderer: AudioRendere
     private fun startOutput() {
         if (outputActive) return
         format?.let { renderer.setFormat(it.first, it.second) }
-        renderer.setClientGain(1f)
+        renderer.setClientGain(volume / 100f)
         outputActive = renderer.start()
         if (outputActive) {
             message = "正在播放投屏声音"
@@ -119,6 +131,8 @@ class MirrorAudioController(context: Context, private val renderer: AudioRendere
 
     fun state(): JSONObject = JSONObject().apply {
         put("source", requested)
+        put("volume", volume)
+        put("gain", renderer.clientGain.toDouble())
         put("outputActive", outputActive)
         put("focusHeld", focusHeld)
         put("formatReady", format != null)

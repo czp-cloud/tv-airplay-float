@@ -23,6 +23,10 @@ class OverlayCommandsReceiver : BroadcastReceiver() {
             }
             "opacity" -> service?.setFloatingOpacity(intent.getFloatExtra("opacity", 1f))
             "compact" -> service?.compactFloating()
+            "audio-devices" -> {
+                setResult(Activity.RESULT_OK, service?.audioDevices()?.toString() ?: "{}", null)
+                return
+            }
             "web" -> {
                 setResult(Activity.RESULT_OK, service?.remoteInfo()?.toString() ?: "{}", null)
                 return

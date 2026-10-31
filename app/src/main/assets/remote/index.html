@@ -27,12 +27,6 @@
     </header>
     <main>
       <section class="intro"><p class="eyebrow">你的手机，就是遥控器</p><h1>小窗，随心放。</h1><p class="intro-copy">调好位置和声音，一起看更自在。</p></section>
-      <div id="authPanel" class="pair-card" hidden>
-        <span class="pair-icon"><svg><use href="#i-lock"/></svg></span>
-        <div><h2>连接你的电视</h2><p>输入电视「AirPlay 投屏小窗」控制页上的六位配对码。</p></div>
-        <form id="pairForm"><label class="sr-only" for="pairCode">六位配对码</label><input id="pairCode" name="code" type="text" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="one-time-code" placeholder="六位配对码" required><button id="pairButton" class="primary" type="submit">连接电视 <span aria-hidden="true">↗</span></button></form>
-        <p id="pairError" class="error" role="alert"></p>
-      </div>
       <div id="dashboard" class="dashboard" inert>
         <section class="card preview-card" aria-label="窗口预览与大小">
           <div class="card-heading"><h2><span class="section-dot"></span>电视上的小窗</h2><span id="mirrorBadge" class="badge">等待投屏</span></div>
@@ -63,10 +57,16 @@
           <div class="card-heading"><h2 id="audioTitle">声音从哪里来</h2><span class="audio-tag">二选一</span></div>
           <button id="audioSwitch" class="audio-switch" role="switch" aria-checked="false" aria-label="播放投屏声音" aria-describedby="audioHelp"><span class="switch-thumb"></span><span class="audio-choice tv"><svg><use href="#i-tv"/></svg>电视原声</span><span class="audio-choice mirror"><svg><use href="#i-airplay"/></svg>投屏声音</span></button>
           <p id="audioHelp" class="hint"><span class="tiny-dot"></span><span id="audioMessage">正在播放电视原声</span></p>
+          <div id="mirrorVolumeControl" class="volume-control" hidden>
+            <div class="control-heading"><label for="volumeSlider">投屏音量</label><output id="volumeValue" for="volumeSlider">100%</output></div>
+            <input id="volumeSlider" type="range" min="0" max="100" value="100" step="1" aria-describedby="volumeHelp">
+            <div class="range-labels"><span>静音</span><span>100%</span></div>
+            <p id="volumeHelp" class="hint">只调整投屏声音，电视原声音量保持不变。</p>
+          </div>
         </section>
       </div>
       <div id="toast" class="toast" role="status" hidden></div>
-      <footer class="footer"><span><i></i>仅在你的局域网中连接</span><button id="disconnectButton" class="text-button" hidden>退出遥控器</button><span class="version">小窗 v2</span></footer>
+      <footer class="footer"><span><i></i>仅在你的局域网中连接</span><span class="version">小窗 v2</span></footer>
     </main>
   </div>
 </body>

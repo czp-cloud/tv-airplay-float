@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
 """Real TV HTTP smoke test. Moves/resizes only our window; restores settings in finally.
-Pairing code is read from TV_REMOTE_CODE or --code-file, never written to the report.
+No pairing is required in this development LAN controller.
 """
 import argparse
 import json
-import os
 from pathlib import Path
 import urllib.error
 import urllib.request
@@ -13,19 +12,14 @@ import urllib.request
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--url', required=True)
-    parser.add_argument('--code-file', type=Path, help='Ignored local JSON from the DUMP-protected web diagnostic')
     parser.add_argument('--out', type=Path, default=Path('artifacts/remote-smoke.json'))
     args = parser.parse_args()
     base = args.url.rstrip('/')
     opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
-    code = json.loads(args.code_file.read_text())['pairingCode'] if args.code_file else os.environ['TV_REMOTE_CODE']
-    token = ''
     checks = []
 
-    def call(path, body=None, *, auth=True, extra=None, method=None):
+    def call(path, body=None, *, extra=None, method=None):
         headers = dict(extra or {})
-        if auth and token:
-            headers['Authorization'] = 'Bearer ' + token
         data = json.dumps(body).encode() if body is not None else None
         if data is not None:
             headers['Content-Type'] = 'application/json'
@@ -50,17 +44,14 @@ def main():
 
     original = None
     try:
-        status, page, headers = call('/', auth=False)
+        status, page, headers = call('/')
         check('mobile_page_served', status == 200 and 'viewport-fit=cover' in page and 'sizeSlider' in page)
         check('no_frame_embedding', headers.get('X-Frame-Options') == 'DENY')
-        check('unauthorized_state_rejected', call('/api/state', auth=False)[0] == 401)
-        check('unauthorized_move_rejected', call('/api/move', {'dx': 24, 'dy': 0}, auth=False)[0] == 401)
-        check('cross_origin_rejected', call('/api/pair', {'code': code}, auth=False, extra={'Origin': 'http://example.invalid'})[0] == 403)
-        check('rebound_host_rejected', call('/', auth=False, extra={'Host': 'example.invalid:8765'})[0] == 403)
-        check('wrong_code_rejected', call('/api/pair', {'code': '000000'}, auth=False)[0] == 401)
-        status, pairing, _ = call('/api/pair', {'code': code}, auth=False)
-        check('pairing_success', status == 200 and len(pairing.get('token', '')) == 48)
-        token = pairing['token']
+        check('direct_state_without_pairing', call('/api/state')[0] == 200)
+        check('pairing_page_removed', 'pairCode' not in page and 'pairForm' not in page)
+        check('pairing_endpoint_removed', call('/api/pair', {'code': '000000'})[0] == 404)
+        check('cross_origin_rejected', call('/api/volume', {'volume': 25}, extra={'Origin': 'http://example.invalid'})[0] == 403)
+        check('rebound_host_rejected', call('/', extra={'Host': 'example.invalid:8765'})[0] == 403)
         original = ok('/api/state')
         check('receiver_running', original['server'] == 'RUNNING')
         check('state_does_not_leak_pairing_secret', 'pairingCode' not in original and 'token' not in original)
@@ -69,6 +60,9 @@ def main():
         check('invalid_delta_rejected', call('/api/move', {'dx': 999, 'dy': 0})[0] == 400)
         check('noninteger_delta_rejected', call('/api/move', {'dx': 1.5, 'dy': 0})[0] == 400)
         check('invalid_size_rejected', call('/api/size', {'width': 0})[0] == 400)
+        check('invalid_volume_high_rejected', call('/api/volume', {'volume': 101})[0] == 400)
+        check('invalid_volume_low_rejected', call('/api/volume', {'volume': -1})[0] == 400)
+        check('noninteger_volume_rejected', call('/api/volume', {'volume': 30.5})[0] == 400)
         check('invalid_audio_source_rejected', call('/api/audio', {'source': 'other'})[0] == 400)
         check('get_cannot_change_window', call('/api/reset', method='GET')[0] == 405)
         check('path_traversal_rejected', call('/../local.properties')[0] == 404)
@@ -83,11 +77,15 @@ def main():
         check('idle_audio_does_not_claim_focus', waiting_audio['source'] == 'mirror' and not waiting_audio['outputActive'] and not waiting_audio['focusHeld'])
         tv_audio = ok('/api/audio', {'source': 'tv'})['audio']
         check('tv_audio_releases_output_and_focus', tv_audio['source'] == 'tv' and not tv_audio['outputActive'] and not tv_audio['focusHeld'])
-        # Pairing throttles guesses even though the web page is publicly loadable on the LAN.
-        results = [call('/api/pair', {'code': '000000'}, auth=False)[0] for _ in range(9)]
-        check('pairing_attempts_rate_limited', 429 in results)
+        for volume in (0, 35, 100):
+            state = ok('/api/volume', {'volume': volume})
+            check('receiver_gain_' + str(volume), state['audio']['volume'] == volume and abs(state['audio']['gain'] - volume / 100) < 0.00001)
+            check('volume_without_output_' + str(volume), not state['audio']['outputActive'] and not state['audio']['focusHeld'] and not state['overlay']['visible'])
+        ok('/api/audio', {'source': 'mirror'})
+        check('source_switch_keeps_volume', ok('/api/state')['audio']['volume'] == 100)
+        ok('/api/audio', {'source': 'tv'})
     finally:
-        if original and token and not original['mirroring']:
+        if original and not original['mirroring']:
             try:
                 current = ok('/api/size', {'width': original['overlay']['width']})
                 for _ in range(50):
@@ -97,6 +95,7 @@ def main():
                         break
                     current = ok('/api/move', {'dx': max(-96, min(96, dx)), 'dy': max(-96, min(96, dy))})
                 ok('/api/audio', {'source': 'tv'})
+                ok('/api/volume', {'volume': original['audio'].get('volume', 100)})
             except Exception as error:
                 checks.append({'name': 'restore_settings', 'passed': False, 'error': str(error)})
         args.out.parent.mkdir(parents=True, exist_ok=True)

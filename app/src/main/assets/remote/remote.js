@@ -1,18 +1,12 @@
 'use strict';
 (() => {
   const $ = id => document.getElementById(id);
-  const ui = Object.fromEntries(['authPanel','dashboard','pairForm','pairCode','pairButton','pairError','connectionDot','connectionLabel','miniWindow','mirrorBadge','stage','stageStatus','sizeSlider','sizeValue','audioSwitch','audioMessage','resetButton','disconnectButton','toast','stick'].map(id => [id, $(id)]));
-  let token = '';
-  try { token = localStorage.getItem('tv-remote-token') || ''; } catch (_) {}
-  let state = null, online = false, busy = false, pollBusy = false, sizing = false;
+  const ui = Object.fromEntries(['dashboard','connectionDot','connectionLabel','miniWindow','mirrorBadge','stage','stageStatus','sizeSlider','sizeValue','audioSwitch','audioMessage','mirrorVolumeControl','volumeSlider','volumeValue','resetButton','toast','stick'].map(id => [id, $(id)]));
+  let state = null, online = false, busy = false, pollBusy = false, sizing = false, adjustingVolume = false;
   let sequence = 0, applied = 0, toastTimer;
   const pending = new Map();
   let repeatTimer = null, holdDelay = null, heldButton = null, stickOrigin = null, vector = null;
 
-  function storage(value) {
-    token = value;
-    try { if (value) localStorage.setItem('tv-remote-token', value); else localStorage.removeItem('tv-remote-token'); } catch (_) {}
-  }
   function network(ok, message) {
     online = ok;
     ui.connectionLabel.textContent = message;
@@ -20,30 +14,19 @@
     ui.dashboard.inert = !ok;
     if (!ok) stopHold();
   }
-  function showAuth() {
-    storage(''); pending.clear();
-    ui.authPanel.hidden = false;
-    ui.dashboard.hidden = true;
-    ui.disconnectButton.hidden = true;
-    network(false, '等待配对');
-  }
   function toast(message) {
     clearTimeout(toastTimer);
     ui.toast.textContent = message; ui.toast.hidden = false;
     toastTimer = setTimeout(() => { ui.toast.hidden = true; }, 3500);
   }
   async function api(path, method = 'GET', body) {
-    const credential = token;
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 5000);
     const headers = {};
-    if (token) headers.Authorization = 'Bearer ' + token;
     if (body !== undefined) headers['Content-Type'] = 'application/json';
     try {
       const response = await fetch('/api/' + path, {method, headers, body: body === undefined ? undefined : JSON.stringify(body), signal: controller.signal, cache: 'no-store'});
       const result = await response.json();
-      if (path !== 'pair' && credential !== token) throw new DOMException('配对状态已变化', 'AbortError');
-      if (response.status === 401 && path !== 'pair') showAuth();
       if (!response.ok) throw new Error(result.error || '操作未完成，请重试');
       return result;
     } finally { clearTimeout(timeout); }
@@ -60,11 +43,15 @@
     ui.sizeSlider.style.setProperty('--fill', ((value - min) / Math.max(1, max - min) * 100) + '%');
     ui.sizeValue.value = Math.round(value / overlay.screenWidth * 100) + '%';
   }
+  function volumeAppearance(value) {
+    ui.volumeSlider.style.setProperty('--fill', value + '%');
+    ui.volumeValue.value = value + '%';
+  }
   function apply(data, id) {
     if (id < applied) return;
     applied = id; state = data;
     network(true, '已连接电视');
-    ui.authPanel.hidden = true; ui.dashboard.hidden = false; ui.disconnectButton.hidden = false;
+    ui.dashboard.hidden = false;
     const overlay = data.overlay;
     const live = data.mirroring && overlay.visible;
     ui.miniWindow.classList.toggle('idle', !live);
@@ -79,13 +66,16 @@
     sliderAppearance(width, overlay);
     ui.audioSwitch.setAttribute('aria-checked', String(data.audio.source === 'mirror'));
     ui.audioMessage.textContent = data.audio.message;
+    ui.mirrorVolumeControl.hidden = data.audio.source !== 'mirror';
+    if (!adjustingVolume && !pending.has('volume')) ui.volumeSlider.value = data.audio.volume ?? 100;
+    volumeAppearance(Number(ui.volumeSlider.value));
   }
   async function poll() {
-    if (!token || document.hidden || pollBusy || busy || pending.size) return;
+    if (document.hidden || pollBusy || busy || pending.size) return;
     pollBusy = true;
     const id = ++sequence;
     try { apply(await api('state'), id); }
-    catch (_) { if (token) network(false, '连接中断 · 正在重连'); }
+    catch (_) { network(false, '连接中断 · 正在重连'); }
     finally { pollBusy = false; }
   }
   function enqueue(action, data) {
@@ -102,7 +92,7 @@
     if (busy) return;
     busy = true;
     try {
-      while (pending.size && token && online) {
+      while (pending.size && online) {
         const [action, data] = pending.entries().next().value;
         pending.delete(action);
         const id = ++sequence;
@@ -111,7 +101,7 @@
           if (action === 'reset') toast('已恢复右上角小窗');
         } catch (error) {
           pending.clear(); stopHold();
-          if (token) { network(false, '连接中断 · 正在重连'); toast(error.name === 'AbortError' ? '电视响应超时，请稍后重试' : error.message); }
+          network(false, '连接中断 · 正在重连'); toast(error.name === 'AbortError' ? '电视响应超时，请稍后重试' : error.message);
         }
       }
     } finally { busy = false; }
@@ -175,6 +165,17 @@
     enqueue('size', {width});
   });
   ui.sizeSlider.addEventListener('change', () => { finishSizing(); enqueue('size', {width: Number(ui.sizeSlider.value)}); });
+  ui.volumeSlider.addEventListener('pointerdown', () => { adjustingVolume = true; });
+  ['pointerup','pointercancel','blur','lostpointercapture'].forEach(name => ui.volumeSlider.addEventListener(name, () => { adjustingVolume = false; }));
+  ui.volumeSlider.addEventListener('input', () => {
+    const volume = Number(ui.volumeSlider.value);
+    volumeAppearance(volume);
+    enqueue('volume', {volume});
+  });
+  ui.volumeSlider.addEventListener('change', () => {
+    adjustingVolume = false;
+    enqueue('volume', {volume: Number(ui.volumeSlider.value)});
+  });
   ui.resetButton.addEventListener('click', () => { stopHold(); enqueue('reset', {}); });
   let suppressSoundClick = false;
   ui.audioSwitch.addEventListener('click', event => {
@@ -199,18 +200,7 @@
     soundDown = null;
   });
   ui.audioSwitch.addEventListener('pointercancel', () => { soundDown = null; });
-  ui.pairForm.addEventListener('submit', async event => {
-    event.preventDefault();
-    ui.pairError.textContent = ''; ui.pairButton.disabled = true;
-    try {
-      const result = await api('pair', 'POST', {code: ui.pairCode.value.trim()});
-      storage(result.token); ui.pairCode.value = '';
-      apply(await api('state'), ++sequence);
-      toast('已连接，开始调整你的小窗');
-    } catch (error) { ui.pairError.textContent = error.name === 'AbortError' ? '电视暂时没有响应，请确认连接了同一 Wi-Fi' : error.message; }
-    finally { ui.pairButton.disabled = false; }
-  });
-  ui.disconnectButton.addEventListener('click', () => { stopHold(); showAuth(); toast('已退出遥控器，电视继续播放'); });
-  if (!token) showAuth(); else { network(false, '正在连接'); poll(); }
+  network(false, '正在连接');
+  poll();
   setInterval(poll, 1500);
 })();

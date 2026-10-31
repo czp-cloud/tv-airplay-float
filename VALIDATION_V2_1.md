@@ -1,0 +1,28 @@
+# 0.2.1：免配对与投屏音量补丁
+
+## 改动
+
+- 按用户要求取消配对码界面、配对 API 与 Bearer token 要求，手机直接打开电视网页即可控制；控制页也不显示连接码。保留局域网来源、数字 IP Host 与 Origin 检查。
+- 选择投屏声音后显示 0–100% 音量滑条。0 静音，100 对应 unity gain；通过 AudioRenderer → 原生音频输出 PCM 增益生效，不调用 AudioManager.setStreamVolume，不调整电视原声音量。
+- 音量使用独立 SharedPreferences 保存，切换音源、结束会话和下次启动时保留；默认仍为电视原声。
+- 增加 DUMP 权限保护的只读 audio-devices 诊断，以及主机只读音频路由采集工具。混音和左右分声道仍是 AUDIO_RESEARCH.md 中待实机验证的方案，没有作为已实现功能展示。
+
+## 当前构建与验证
+
+- 包名 dev.czp.tvairplay，versionName 0.2.1-web-remote，versionCode 38，ARM32。
+- assembleDebug 与 lintDebug 成功；Lint 0 errors、65 warnings、1 hint。
+- APK 签名验证通过；29,868,782 字节；SHA-256：`a827794a20cd026ee5a7c61312d75a3d9f19e3fda4bffe36557bcf84226e469e`。
+- 可安装文件保留在忽略的 artifacts/releases/tv-airplay-float-0.2.1-debug.apk，避免后续构建覆盖。
+- APK 内三份网页资源逐字节与源码匹配；核对无配对表单/鉴权脚本，包含音量滑条与 volume 命令。
+- Chrome 与 WebKit 各 28 个检查、共 56 个通过，使用 fixture API。包括免配对打开与刷新、音量 35%/0/70%、切换源保留设置、显示/隐藏音量面板、320/430 宽度的展开布局，以及已有摇杆/缩放/重连回归。报告及截图：artifacts/web-volume-smoke/。
+- tools/remote_smoke.py 已更新为免配对与 0/35/100% 实机 API 校验，但当前版本尚未运行这些实机检查，不能把 fixture 结果当作硬件音量验收。
+
+## 安装状态与阻塞
+
+用户已说明停止投屏。然而主机当前无法连到已知 TV 地址 192.168.1.7：5555、8765、6095 均不可达；Mac 的 192.168.1.12 接口与 192.168.1.1 网关仍可用。只读探测未发现 192.168.1.0/24 上的 ADB 监听，Bonjour 也未发现本 TV 接收器。
+
+因此本次没有尝试安装，没有宣称电视已经更新或左右混音已成功。当前 TV 安装版本仍应按此前的 0.2.0 记录理解，待重新连接后用包管理器确认。
+
+网络恢复后，先验证型号与无镜像状态，再分块上传、核对 SHA-256、后台安装并重启本应用接收服务；不打开全屏控制页或切换 HDMI。随后运行免配对/音量 API、音量保存与系统音量不变检查，并请用户试听静音、低音量和恢复音量。最后采集实时音频路由，继续混音实验。
+
+第一版和 0.2.0 已完成的现场验收分别保留在 VALIDATION.md、VALIDATION_V2.md；不因本补丁暂未安装而覆盖历史证据。

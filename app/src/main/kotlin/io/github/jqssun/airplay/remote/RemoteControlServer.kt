@@ -7,9 +7,6 @@ import org.json.JSONObject
 import java.net.Inet4Address
 import java.net.InetAddress
 import java.net.NetworkInterface
-import java.net.URI
-import java.security.MessageDigest
-import java.security.SecureRandom
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.FutureTask
 import java.util.concurrent.RejectedExecutionException
@@ -29,11 +26,6 @@ class RemoteControlServer(
         "/remote.css" to ("text/css; charset=utf-8" to "remote.css"),
         "/remote.js" to ("application/javascript; charset=utf-8" to "remote.js"),
     ).mapValues { (_, value) -> value.first to context.assets.open("remote/${value.second}").bufferedReader().use { it.readText() } }
-    private val random = SecureRandom()
-    val pairingCode: String = (100000 + random.nextInt(900000)).toString()
-    private val token = ByteArray(24).also(random::nextBytes).joinToString("") { "%02x".format(it) }
-    private var loginWindowAt = 0L
-    private var loginAttempts = 0
     @Volatile private var closed = false
 
     init {
@@ -74,22 +66,15 @@ class RemoteControlServer(
                 val (mime, body) = assets.getValue(session.uri)
                 return response(Response.Status.OK, mime, body)
             }
-            if (session.uri == "/api/pair" && session.method == Method.POST) {
-                if (!allowLogin()) return error(Response.Status.TOO_MANY_REQUESTS, "尝试过于频繁，请稍后重试")
-                val body = readJson(session)
-                require(body.length() == 1 && body.opt("code") is String)
-                if (!equalSecret(body.getString("code"), pairingCode)) return error(Response.Status.UNAUTHORIZED, "配对码不正确")
-                return json(JSONObject().put("token", token))
-            }
+            // This development controller is directly accessible on the LAN by user request.
+            // Keep numeric local Host / Origin checks and fixed routes for every request.
             if (!session.uri.startsWith("/api/")) return error(Response.Status.NOT_FOUND, "页面不存在")
-            if (!equalSecret(session.headers["authorization"] ?: "", "Bearer $token")) {
-                return error(Response.Status.UNAUTHORIZED, "请先输入电视上的配对码")
-            }
             if (session.uri == "/api/state" && session.method == Method.GET) return json(onMain(snapshot))
             val action = when (session.uri) {
                 "/api/move" -> "move"
                 "/api/size" -> "size"
                 "/api/audio" -> "audio"
+                "/api/volume" -> "volume"
                 "/api/reset" -> "reset"
                 else -> return error(Response.Status.NOT_FOUND, "接口不存在")
             }
@@ -101,6 +86,7 @@ class RemoteControlServer(
                     requireInt(body, "dx", -96..96); requireInt(body, "dy", -96..96)
                 }
                 "size" -> { require(body.length() == 1); requireInt(body, "width", 1..16384) }
+                "volume" -> { require(body.length() == 1); requireInt(body, "volume", 0..100) }
                 "audio" -> require(body.length() == 1 && body.opt("source") in setOf("tv", "mirror"))
                 "reset" -> require(body.length() == 0)
             }
@@ -136,13 +122,6 @@ class RemoteControlServer(
         try { return task.get(2, TimeUnit.SECONDS) } finally { task.cancel(false) }
     }
 
-    @Synchronized private fun allowLogin(): Boolean {
-        val now = android.os.SystemClock.elapsedRealtime()
-        if (now - loginWindowAt > 30_000) { loginWindowAt = now; loginAttempts = 0 }
-        return ++loginAttempts <= 8
-    }
-
-    private fun equalSecret(a: String, b: String) = MessageDigest.isEqual(a.toByteArray(), b.toByteArray())
     private fun json(value: JSONObject) = response(Response.Status.OK, "application/json; charset=utf-8", value.toString())
     private fun error(status: Response.Status, message: String) =
         response(status, "application/json; charset=utf-8", JSONObject().put("error", message).toString())
