@@ -10,8 +10,8 @@ const out = path.resolve(process.env.QA_OUT || 'artifacts/web-smoke');
 fs.mkdirSync(out, {recursive:true});
 let state, offline = false, commands = 0;
 function reset() {
-  state = {version:'0.3.0',receiver:'电视投屏小窗',server:'RUNNING',autoStart:true,mirroring:false,
-    overlay:{visible:false,screenWidth:1920,screenHeight:1080,minWidth:240,maxWidth:1536,x:1584,y:16,width:320,height:180},
+  state = {version:'0.3.1',receiver:'电视投屏小窗',server:'RUNNING',autoStart:true,mirroring:false,
+    overlay:{visible:false,screenWidth:1920,screenHeight:1080,minWidth:240,maxWidth:1536,minLongEdge:240,maxLongEdge:1536,longEdge:320,aspectRatio:16/9,x:1584,y:16,width:320,height:180},
     audio:{source:'tv',volume:100,gain:1,outputActive:false,focusHeld:false,message:'正在播放电视原声'}};
   commands = 0; offline = false;
 }
@@ -29,11 +29,16 @@ const server = http.createServer(async (req,res) => {
   const data=raw?JSON.parse(raw):{};
   res.setHeader('Content-Type','application/json');
   if(req.url==='/api/move') {commands++;state.overlay.x+=data.dx;state.overlay.y+=data.dy;}
-  if(req.url==='/api/size') {commands++;state.overlay.width=Math.max(240,Math.min(1536,data.width));state.overlay.height=Math.floor(state.overlay.width*9/16);}
+  if(req.url==='/api/size') {
+    commands++;const o=state.overlay;
+    o.longEdge=Math.max(o.minLongEdge,Math.min(o.maxLongEdge,data.longEdge ?? data.width));
+    o.width=Math.floor(o.longEdge*Math.min(1,o.aspectRatio));
+    o.height=Math.floor(o.longEdge*Math.min(1,1/o.aspectRatio));
+  }
   if(req.url==='/api/volume') {commands++;state.audio.volume=data.volume;state.audio.gain=data.volume/100;}
   if(req.url==='/api/audio') {commands++;state.audio.source=data.source;state.audio.message=data.source==='tv'?'正在播放电视原声':data.source==='mixed'?'连接投屏后混合播放':'连接投屏后切换声音';}
   if(req.url==='/api/autostart') {commands++;state.autoStart=data.enabled;}
-  if(req.url==='/api/reset') {commands++;Object.assign(state.overlay,{x:1584,y:16,width:320,height:180});}
+  if(req.url==='/api/reset') {commands++;Object.assign(state.overlay,{x:1584,y:16,width:320,height:180,longEdge:320,aspectRatio:16/9,minLongEdge:240,maxLongEdge:1536});}
   const o=state.overlay;o.x=Math.max(0,Math.min(1920-o.width,o.x));o.y=Math.max(0,Math.min(1080-o.height,o.y));
   res.end(JSON.stringify(state));
 });
@@ -125,6 +130,24 @@ async function until(condition) {for(let i=0;i<50;i++){if(condition())return;awa
       check(engine+': reset corner and size',state.overlay.width===320&&state.overlay.x===1584);
       state.mirroring=true;state.overlay.visible=true;await page.getByText('正在投屏',{exact:true}).waitFor();
       check(engine+': live state updates',await page.locator('#miniWindow').evaluate(el=>!el.classList.contains('idle')));
+
+      // Simulate the real receiver announcing portrait during an existing session.
+      Object.assign(state.overlay,{aspectRatio:334/720,width:222,height:480,longEdge:480,maxLongEdge:864,x:1698,y:600});
+      await page.waitForFunction(()=>document.querySelector('#sizeSlider').max==='864');
+      const portrait=await page.locator('#miniWindow').boundingBox();
+      check(engine+': portrait preview uses stream ratio',Math.abs(portrait.width/portrait.height-222/480)<.02);
+      check(engine+': rotation synchronizes size slider',await slider.inputValue()==='480');
+      await slider.evaluate(el=>{el.value='600';el.dispatchEvent(new Event('input',{bubbles:true}));el.dispatchEvent(new Event('change',{bubbles:true}));});
+      await until(()=>state.overlay.longEdge===600);
+      check(engine+': portrait slider changes longest edge',state.overlay.height===600 && state.overlay.width===278);
+      await page.waitForTimeout(150);
+      const stageBox=await page.locator('#stage').boundingBox(), portraitBox=await page.locator('#miniWindow').boundingBox();
+      check(engine+': portrait preview stays within TV edges',portraitBox.x+portraitBox.width<=stageBox.x+stageBox.width+1 && portraitBox.y+portraitBox.height<=stageBox.y+stageBox.height+1);
+      await page.screenshot({path:path.join(out,engine+'-phone-portrait.png'),fullPage:true});
+      Object.assign(state.overlay,{aspectRatio:16/9,width:600,height:337,longEdge:600,maxLongEdge:1536});
+      await page.waitForFunction(()=>document.querySelector('#sizeSlider').max==='1536');
+      const landscape=await page.locator('#miniWindow').boundingBox();
+      check(engine+': landscape preview returns after rotation',Math.abs(landscape.width/landscape.height-600/337)<.02);
 
       offline=true;await page.getByText('连接中断 · 正在重连',{exact:true}).waitFor();
       check(engine+': offline controls disabled',await page.locator('#dashboard').evaluate(el=>el.inert));

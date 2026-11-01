@@ -225,7 +225,7 @@ class AirPlayService : LifecycleService(), RaopCallbackHandler, LogListener {
     private var remoteError = ""
 
     fun remoteState(): JSONObject = JSONObject().apply {
-        put("version", "0.3.0")
+        put("version", "0.3.1")
         put("receiver", prefs[Prefs.SERVER_NAME])
         put("server", _serverState.value.name)
         put("autoStart", prefs[Prefs.BOOT_AUTO_START])
@@ -264,7 +264,8 @@ class AirPlayService : LifecycleService(), RaopCallbackHandler, LogListener {
             val server = RemoteControlServer(this, _mainHandler, ::remoteState) { action, body ->
                 when (action) {
                     "move" -> floating.move(body.getInt("dx"), body.getInt("dy"))
-                    "size" -> floating.setWidth(body.getInt("width"))
+                    "size" -> if (body.has("longEdge")) floating.setLongEdge(body.getInt("longEdge"))
+                        else floating.setWidth(body.getInt("width"))
                     "reset" -> floating.compact()
                     "audio" -> mirrorAudio.select(body.getString("source"))
                     "volume" -> mirrorAudio.setVolume(body.getInt("volume"))

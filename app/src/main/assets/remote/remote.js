@@ -38,8 +38,16 @@
     ui.miniWindow.style.width = (overlay.width / overlay.screenWidth * 100) + '%';
     ui.miniWindow.style.height = (overlay.height / overlay.screenHeight * 100) + '%';
   }
+  function sizePreview(edge, overlay) {
+    const aspect = overlay.aspectRatio || overlay.width / overlay.height;
+    const width = Math.max(1, Math.floor(edge * Math.min(1, aspect)));
+    const height = Math.max(1, Math.floor(edge * Math.min(1, 1 / aspect)));
+    preview({...overlay, width, height,
+      x: Math.max(0, Math.min(overlay.x, overlay.screenWidth - width)),
+      y: Math.max(0, Math.min(overlay.y, overlay.screenHeight - height))});
+  }
   function sliderAppearance(value, overlay) {
-    const min = overlay.minWidth, max = overlay.maxWidth;
+    const min = overlay.minLongEdge, max = overlay.maxLongEdge;
     ui.sizeSlider.style.setProperty('--fill', ((value - min) / Math.max(1, max - min) * 100) + '%');
     ui.sizeValue.value = Math.round(value / overlay.screenWidth * 100) + '%';
   }
@@ -58,12 +66,12 @@
     ui.mirrorBadge.classList.toggle('live', live);
     ui.mirrorBadge.textContent = live ? '正在投屏' : '等待投屏';
     ui.stageStatus.textContent = live ? '小窗位置 · 实时同步' : '未投屏 · 位置已保存';
-    ui.stage.setAttribute('aria-label', `小窗位置预览：横坐标 ${overlay.x}，纵坐标 ${overlay.y}，宽度 ${overlay.width}`);
-    ui.sizeSlider.min = overlay.minWidth; ui.sizeSlider.max = overlay.maxWidth;
-    if (!sizing && !pending.has('size')) ui.sizeSlider.value = overlay.width;
-    const width = Number(ui.sizeSlider.value);
-    preview({...overlay, width, height: Math.floor(width * 9 / 16)});
-    sliderAppearance(width, overlay);
+    ui.stage.setAttribute('aria-label', `小窗位置预览：横坐标 ${overlay.x}，纵坐标 ${overlay.y}，尺寸 ${overlay.width} × ${overlay.height}`);
+    ui.sizeSlider.min = overlay.minLongEdge; ui.sizeSlider.max = overlay.maxLongEdge;
+    if (!sizing && !pending.has('size')) ui.sizeSlider.value = overlay.longEdge;
+    const edge = Number(ui.sizeSlider.value);
+    sizePreview(edge, overlay);
+    sliderAppearance(edge, overlay);
     setAudioMode(data.audio.source);
     if (!pending.has('autostart')) ui.autoStartSwitch.checked = Boolean(data.autoStart);
     ui.audioMessage.textContent = data.audio.message;
@@ -160,12 +168,12 @@
   ['pointerup','pointercancel','blur','lostpointercapture'].forEach(name => ui.sizeSlider.addEventListener(name, finishSizing));
   ui.sizeSlider.addEventListener('input', () => {
     if (!state) return;
-    const width = Number(ui.sizeSlider.value);
-    preview({...state.overlay, width, height: Math.floor(width * 9 / 16)});
-    sliderAppearance(width, state.overlay);
-    enqueue('size', {width});
+    const longEdge = Number(ui.sizeSlider.value);
+    sizePreview(longEdge, state.overlay);
+    sliderAppearance(longEdge, state.overlay);
+    enqueue('size', {longEdge});
   });
-  ui.sizeSlider.addEventListener('change', () => { finishSizing(); enqueue('size', {width: Number(ui.sizeSlider.value)}); });
+  ui.sizeSlider.addEventListener('change', () => { finishSizing(); enqueue('size', {longEdge: Number(ui.sizeSlider.value)}); });
   ui.volumeSlider.addEventListener('pointerdown', () => { adjustingVolume = true; });
   ['pointerup','pointercancel','blur','lostpointercapture'].forEach(name => ui.volumeSlider.addEventListener(name, () => { adjustingVolume = false; }));
   ui.volumeSlider.addEventListener('input', () => {

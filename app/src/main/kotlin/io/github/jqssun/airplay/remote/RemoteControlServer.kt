@@ -86,7 +86,10 @@ class RemoteControlServer(
                     require(body.length() == 2)
                     requireInt(body, "dx", -96..96); requireInt(body, "dy", -96..96)
                 }
-                "size" -> { require(body.length() == 1); requireInt(body, "width", 1..16384) }
+                "size" -> {
+                    require(body.length() == 1)
+                    requireInt(body, if (body.has("longEdge")) "longEdge" else "width", 1..16384)
+                }
                 "volume" -> { require(body.length() == 1); requireInt(body, "volume", 0..100) }
                 "audio" -> require(body.length() == 1 && body.opt("source") in setOf("tv", "mirror", "mixed"))
                 "autostart" -> require(body.length() == 1 && body.opt("enabled") is Boolean)

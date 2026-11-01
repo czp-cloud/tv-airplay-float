@@ -33,8 +33,8 @@ android {
         applicationId = "dev.czp.tvairplay"
         minSdk = 26
         targetSdk = 37
-        versionCode = 39
-        versionName = "0.3.0-mixed-audio"
+        versionCode = 40
+        versionName = "0.3.1-auto-aspect"
 
         externalNativeBuild {
             cmake {
@@ -112,6 +112,7 @@ tasks.configureEach {
 }
 
 dependencies {
+    testImplementation("junit:junit:4.13.2")
     implementation("org.nanohttpd:nanohttpd:2.3.1")
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.activity.compose)

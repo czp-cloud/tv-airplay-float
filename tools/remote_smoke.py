@@ -60,6 +60,9 @@ def main():
         check('invalid_delta_rejected', call('/api/move', {'dx': 999, 'dy': 0})[0] == 400)
         check('noninteger_delta_rejected', call('/api/move', {'dx': 1.5, 'dy': 0})[0] == 400)
         check('invalid_size_rejected', call('/api/size', {'width': 0})[0] == 400)
+        check('invalid_long_edge_rejected', call('/api/size', {'longEdge': 0})[0] == 400)
+        check('ambiguous_size_rejected', call('/api/size', {'longEdge': 480, 'width': 480})[0] == 400)
+        check('noninteger_long_edge_rejected', call('/api/size', {'longEdge': 480.5})[0] == 400)
         check('invalid_volume_high_rejected', call('/api/volume', {'volume': 101})[0] == 400)
         check('invalid_volume_low_rejected', call('/api/volume', {'volume': -1})[0] == 400)
         check('noninteger_volume_rejected', call('/api/volume', {'volume': 30.5})[0] == 400)
@@ -67,8 +70,11 @@ def main():
         check('invalid_audio_source_rejected', call('/api/audio', {'source': 'other'})[0] == 400)
         check('get_cannot_change_window', call('/api/reset', method='GET')[0] == 405)
         check('path_traversal_rejected', call('/../local.properties')[0] == 404)
+        long_sized = ok('/api/size', {'longEdge': 480})['overlay']
+        check('long_edge_geometry', max(long_sized['width'], long_sized['height']) == long_sized['longEdge'] == 480)
+        check('source_aspect_preserved', abs(long_sized['width'] - long_sized['height'] * long_sized['aspectRatio']) < max(1, long_sized['aspectRatio']))
         resized = ok('/api/size', {'width': 700})
-        check('absolute_resize_and_ratio', resized['overlay']['width'] == 700 and resized['overlay']['height'] == 393)
+        check('absolute_resize_and_ratio', abs(resized['overlay']['width'] - 700) <= 1 and abs(resized['overlay']['width'] - resized['overlay']['height'] * resized['overlay']['aspectRatio']) < max(1, resized['overlay']['aspectRatio']))
         moved = ok('/api/move', {'dx': -24, 'dy': 24})
         check('direction_moves_window', moved['overlay']['x'] == resized['overlay']['x'] - 24 and moved['overlay']['y'] == resized['overlay']['y'] + 24)
         check('idle_controls_keep_overlay_hidden', not moved['overlay']['visible'])
@@ -92,7 +98,7 @@ def main():
     finally:
         if original and not original['mirroring']:
             try:
-                current = ok('/api/size', {'width': original['overlay']['width']})
+                current = ok('/api/size', {'longEdge': original['overlay'].get('preferredLongEdge', original['overlay']['width'])})
                 for _ in range(50):
                     dx = original['overlay']['x'] - current['overlay']['x']
                     dy = original['overlay']['y'] - current['overlay']['y']

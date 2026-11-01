@@ -31,6 +31,14 @@ class MirrorOverlay(
     private val density = context.resources.displayMetrics.density
     private fun dp(n: Int) = (n * density).roundToInt()
     private fun screen() = Point().also { wm.defaultDisplay.getRealSize(it) }
+    private var aspect = prefs.getString("aspect_ratio", null)?.toDoubleOrNull()
+        ?.takeIf { it.isFinite() && it > 0 } ?: (16.0 / 9.0)
+    // Migrate the old landscape width without overwriting it when portrait must fit the screen.
+    private var preferredLongEdge = prefs.getInt("long_edge", prefs.getInt("width", screen().x / 6))
+    private fun geometry(): OverlayGeometry {
+        val s = screen()
+        return OverlayGeometry(s.x, s.y, aspect, dp(120))
+    }
 
     // Migrate the former translucent debug window once, preserving its size and position.
     init {
@@ -40,9 +48,9 @@ class MirrorOverlay(
     }
     private val params: WindowManager.LayoutParams by lazy {
         val s = screen()
-        val width = prefs.getInt("width", s.x / 6)
+        val (width, height) = geometry().size(preferredLongEdge)
         WindowManager.LayoutParams(
-            width, width * 9 / 16, WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+            width, height, WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
                 WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
             PixelFormat.TRANSLUCENT,
@@ -112,7 +120,13 @@ class MirrorOverlay(
     }
 
     fun receiving(width: Int, height: Int) {
+        if (width <= 0 || height <= 0) return
         videoSize = "${width}x$height"
+        val newAspect = width.toDouble() / height
+        if (aspect != newAspect) {
+            aspect = newAspect
+            update()
+        }
         Log.i(TAG, "mirror_video $videoSize")
     }
 
@@ -125,12 +139,16 @@ class MirrorOverlay(
 
     fun resize(scale: Float) {
         if (!scale.isFinite()) return
-        params.width = (params.width * scale.coerceIn(0.5f, 2f)).roundToInt()
-        update()
+        setLongEdge((maxOf(params.width, params.height) * scale.coerceIn(0.5f, 2f)).roundToInt())
     }
 
     fun setWidth(width: Int) {
-        params.width = width
+        setLongEdge(geometry().longEdgeForWidth(width))
+    }
+
+    fun setLongEdge(longEdge: Int) {
+        val g = geometry()
+        preferredLongEdge = longEdge.coerceIn(g.minLongEdge, g.maxLongEdge)
         update()
     }
 
@@ -144,7 +162,8 @@ class MirrorOverlay(
 
     fun compact() {
         val s = screen()
-        params.width = minOf(320, s.x / 4)
+        preferredLongEdge = minOf(320, s.x / 4)
+        clamp()
         params.x = s.x - params.width - dp(8)
         params.y = dp(8)
         params.alpha = 1f
@@ -153,9 +172,9 @@ class MirrorOverlay(
 
     private fun clamp() {
         val s = screen()
-        val maxWidth = minOf(s.x * 4 / 5, s.y * 16 / 9).coerceAtLeast(1)
-        params.width = params.width.coerceIn(minOf(dp(120), maxWidth), maxWidth)
-        params.height = (params.width * 9 / 16).coerceAtMost(s.y)
+        val (width, height) = geometry().size(preferredLongEdge)
+        params.width = width
+        params.height = height
         params.x = params.x.coerceIn(0, (s.x - params.width).coerceAtLeast(0))
         params.y = params.y.coerceIn(0, (s.y - params.height).coerceAtLeast(0))
     }
@@ -169,6 +188,7 @@ class MirrorOverlay(
 
     private fun save() {
         prefs.edit().putInt("x", params.x).putInt("y", params.y).putInt("width", params.width)
+            .putInt("long_edge", preferredLongEdge).putString("aspect_ratio", aspect.toString())
             .putFloat("opacity", params.alpha).apply()
     }
 
@@ -176,8 +196,13 @@ class MirrorOverlay(
         clamp()
         val s = screen()
         put("screenWidth", s.x); put("screenHeight", s.y)
-        put("maxWidth", minOf(s.x * 4 / 5, s.y * 16 / 9))
-        put("minWidth", minOf(dp(120), minOf(s.x * 4 / 5, s.y * 16 / 9)))
+        val g = geometry()
+        put("maxWidth", g.size(g.maxLongEdge).first)
+        put("minWidth", g.size(g.minLongEdge).first)
+        put("aspectRatio", aspect)
+        put("longEdge", maxOf(params.width, params.height))
+        put("preferredLongEdge", preferredLongEdge)
+        put("minLongEdge", g.minLongEdge); put("maxLongEdge", g.maxLongEdge)
         put("visible", root != null)
         put("videoSize", videoSize)
         put("surfaceUpdates", surfaceUpdates)
