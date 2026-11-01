@@ -1,97 +1,55 @@
 # AirPlay 投屏小窗
 
-此工作分支是独立的小窗派生版本，使用说明、构建方法和实现范围见 [FLOATING.md](FLOATING.md)。上游 AirPlay 接收器的说明保留如下；第二版手机网页遥控器见 [WEB_REMOTE.md](WEB_REMOTE.md)。上游功能列表不代表本派生版本均已启用或验证。
+无需 root 的 Android TV 悬浮投屏接收器。用 iPhone 控制中心的“屏幕镜像”连接电视，在继续看电视或 HDMI 盒子时，把手机画面放进可移动、可缩放的小窗，并通过手机网页控制。
 
-# AirPlay Receiver for Android
+这是独立维护的 APK，包名 `dev.czp.tvairplay`。代码基于 [jqssun/android-airplay-server](https://github.com/jqssun/android-airplay-server) 二次开发，保留上游 Git 历史和 GPL-3.0 许可证；AirPlay 协议和原生依赖继续使用上游的 UxPlay 等实现。它与 CleanYourTV 清广告/桌面项目分开，不依赖后者运行。
 
-[![Stars](https://img.shields.io/github/stars/jqssun/android-airplay-server)](https://github.com/jqssun/android-airplay-server)
-[![GitHub](https://img.shields.io/github/downloads/jqssun/android-airplay-server/total?label=GitHub&logo=GitHub)](https://github.com/jqssun/android-airplay-server/releases)
-[![license](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://github.com/jqssun/android-airplay-server/blob/main/LICENSE)
-[![build](https://img.shields.io/github/actions/workflow/status/jqssun/android-airplay-server/apk.yml?label=build)](https://github.com/jqssun/android-airplay-server/actions/workflows/apk.yml)
-[![release](https://img.shields.io/github/v/release/jqssun/android-airplay-server)](https://github.com/jqssun/android-airplay-server/releases)
+## 第一个发布版本
 
-A fully featured free and open-source implementation of AirPlay for Android that turns your device into an AirPlay-compatible display and speaker, based on [UxPlay](https://github.com/FDH2/UxPlay). It is the first open-source AirPlay 2 receiver for Android and Android TV, and works with iOS/iPadOS, macOS devices as well as other sender implementations.
+`v0.3.3` 是本项目首个发布里程碑，对应应用版本 `0.3.3-opacity`、versionCode `42`。此前的提交记录保留开发过程，并不表示已经对外发布过多个版本。
 
-[<img height="48" alt="Get it on Google Play" src="https://jqssun.github.io/images/badges/google-play-store.svg">](https://play.google.com/store/apps/details?id=io.github.jqssun.airplay)
-[<img height="48" alt="Get it on F-Droid" src="https://jqssun.github.io/images/badges/fdroid.svg">](https://f-droid.org/packages/io.github.jqssun.airplay)
-[<img height="48" alt="Get it on GitHub" src="https://jqssun.github.io/images/badges/github.svg">](https://github.com/jqssun/android-airplay-server/releases/latest)
+- 接收 iPhone 控制中心的屏幕镜像，后台等待连接；解码出画面后显示，断开后隐藏。
+- 画面窗口跟随横竖屏比例，每次开始投屏和改变比例后自动贴屏幕最右边。
+- 手机网页提供摇杆、窗口大小、透明度、独立投屏音量和开机接收开关，无需配对码。
+- 声音支持仅电视、仅投屏、混合声音；本台小米电视的 HDMI 原声与投屏同时播放已通过现场试听。
+- 窗口只有视频，没有标题栏和最大化/最小化按钮；位置、大小、透明度和投屏音量会保存。
 
-<video loop src='https://github.com/user-attachments/assets/79ed7c0c-0102-43cc-8816-4f00ce6a4199' alt="demo" width="200" style="display: block; margin: auto;"></video>
+## 使用
 
-## Compatibility
+1. 安装 APK，打开“AirPlay 投屏小窗”，允许显示在其他应用上层并开启接收。
+2. 返回电视节目或 HDMI 输入，让 iPhone 与电视连接同一局域网。
+3. iPhone 控制中心 → 屏幕镜像 → “电视投屏小窗”。
+4. 手机浏览器打开 `http://<电视IP>:8765`，移动小窗或调整大小、透明度和声音。
+5. 在 iPhone 停止屏幕镜像即可隐藏小窗；接收服务继续等待下次连接。
 
-- Android 7.0+, including Android TV
-- AirPlay devices on the same subnet, including iOS/iPadOS, macOS devices, or other sender implementations
+透明度数值越低越透明，100% 为完全不透明。“恢复右上角”同时恢复完全不透明。开机自动接收保持开启，启动服务不弹等待窗口；可以在网页或电视控制页关闭。
 
-## Features
+详细操作与实现见 [FLOATING.md](FLOATING.md) 和 [WEB_REMOTE.md](WEB_REMOTE.md)。变更记录见 [CHANGELOG.md](CHANGELOG.md)。
 
-- Screen mirroring with H.264 and H.265 (HEVC) video decoding
-- Audio streaming with AAC-ELD, AAC-LC and ALAC audio decoding
-- Video playback with support for HLS, downloads, and remote controls
-- Music playback with track information, cover art, and remote controls
-- Support for Android TV with directional pad navigation and seeking controls
-- Support for Picture-in-Picture, automatic resolution and mode switching
-- Optional PIN authentication
-- Video resolution, overscan, and frame rate control
-- Audio latency control and support for software decoder fallback
-- Debug overlay with real-time statistics (FPS, bitrate, codec, resolution, frame count, audio volume, etc.)
-- Android native media session integration with notification controls
-- Wired secondary display for macOS/iPadOS devices over USB tethering
+## 兼容与验证
 
-> [!WARNING]
-> DRM content (e.g. from the Apple TV application) is not supported.
+- 最低 Android 8.0 / API 26，当前安装包面向 ARM32 `armeabi-v7a`。
+- 现场设备：小米 MiTV-MTEQ0，Android 10。已确认 iPhone 镜像可覆盖 HDMI 输入，移动、缩放、三种声音模式、横竖屏和自动靠右正常。
+- 透明度网页与真实电视 HTTP 已检查；现场视觉效果未单独重新验收。安装后自动启动和模拟快速开机已通过，真正重开后的自启按用户要求尚未验证。
+- 不支持 DRM；不承诺所有商业视频 App、其他电视、音响直通、4K/HDR 或长期待机兼容。当前入口是屏幕镜像，独立 AirPlay 视频 URL/HLS 播放没有启用。
 
-## Configure from ADB
+验证记录：[混音与自启](VALIDATION_V3.md)、[横竖屏与靠右](VALIDATION_V3_1.md)、[透明度](VALIDATION_V3_3.md)。
 
-On devices without a display, settings can also be changed over ADB. The receiver is protected by `android.permission.DUMP` so regular installed apps cannot change them. Values are passed as text using `--es`. Using `adb shell`:
+## 构建
 
-```bash
-export KEY="server_name" VALUE="Speaker"
-am broadcast -n io.github.jqssun.airplay/.SettingsReceiver -a io.github.jqssun.airplay.SET_SETTING --es key "$KEY" --es value "$VALUE"
+需要 JDK 21、Android SDK Platform 37.0、build-tools 36.0.0、NDK 27.0.12077973 和 CMake 3.22.1。Gradle wrapper 已包含在仓库中。
+
+```sh
+git clone --recurse-submodules ssh://git@192.168.2.5:2222/czppp/tv-airplay-float.git
+cd tv-airplay-float
+# 配置 ANDROID_HOME，或在忽略的 local.properties 中设置 sdk.dir
+./gradlew --no-daemon :app:assembleDebug -PtargetAbi=armeabi-v7a
 ```
 
-To list all settings with their current values as JSON:
+输出为 `app/build/outputs/apk/debug/app-debug.apk`。其他 ABI 可指定 `-PtargetAbi=arm64-v8a`；依赖下载镜像和完整工具链说明见 [FLOATING.md](FLOATING.md)。本地签名密钥、SDK、缓存、APK、设备日志和家庭截图不进入源码仓库。
 
-```bash
-am start -n io.github.jqssun.airplay/.MainActivity
-am broadcast -n io.github.jqssun.airplay/.SettingsReceiver -a io.github.jqssun.airplay.LIST_SETTINGS
-```
+## 上游与许可证
 
-## Implementation
-
-This application uses the C-based [UxPlay](https://github.com/FDH2/UxPlay) library to implement the AirPlay/RAOP protocol, with a JNI bridge to the Android application layer. Audio can be decoded via MediaCodec or a software ALAC decoder, while mirroring video is decoded via MediaCodec and rendered to a SurfaceView. HLS sessions are served through a local playlist proxy.
-
-When using USB tethering, the Android device can act as a reliable secondary display over a wired connection. Apple devices natively support USB tethering over CDC-NCM, so on Android devices that default to RNDIS, you may need to switch to CDC-NCM over ADB:
-
-```bash
-adb shell settings put global tether_force_usb_functions 1
-```
-
-```mermaid
-flowchart LR
-    AppleDevice["Apple Device (Sender)"]
-    UxPlay["UxPlay (C/JNI)<br/>RAOP + mDNS<br/>FairPlay + HLS"]
-    AndroidApp["Android (Receiver)<br/>MediaCodec + AudioTrack<br/>ExoPlayer (HLS)"]
-
-    AppleDevice -- "RAOP / HLS" --> UxPlay
-    UxPlay --> AndroidApp
-```
-
-CMake is used for native C/C++ components under [`app/src/main/cpp`](app/src/main/cpp). Submodules must be initialized before building. 
-
-```bash
-git submodule update --init --recursive
-./gradlew assembleDebug
-```
-
-Check out the [CI](https://github.com/jqssun/android-airplay-server/blob/main/.github/workflows/apk.yml) for more details on reproducible builds.
-
-## Credits
-
-- [UxPlay](https://github.com/FDH2/UxPlay) for the AirPlay/RAOP server implementation
-- [FFmpeg](https://ffmpeg.org) for the lossless audio decoder
-- [Next Player](https://github.com/anilbeesetti/nextplayer) for the video player
-
----
-
-Disclaimer: This project is not affiliated with Apple Inc.
+- 接收器基线：[android-airplay-server @ a46cca0](https://github.com/jqssun/android-airplay-server/tree/a46cca0a6a1274e9e33c0e750f0f1c1eb1d881ea)，上游版本 0.0.36；原始说明可在该提交查看。
+- AirPlay 原生实现：[UxPlay](https://github.com/FDH2/UxPlay)，其余原生依赖通过 Git submodule 固定版本。
+- 本项目保留 [GPL-3.0 许可证](LICENSE)；新增依赖声明见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
