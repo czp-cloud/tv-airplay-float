@@ -19,7 +19,7 @@ Chrome / WebKit 共 66 个 fixture 浏览器检查通过：三模式点选、键
 
 ## 现场音频配置
 
-只读采集到内置 Speaker 支持 2 声道、48 kHz；另有 SPDIF 输出。厂商 audio_policy_configuration.xml 中 Speaker、SPDIF 的 route 类型为 mix，来源包括 primary output 与 HDMI In。AudioFlinger 有正常双声道软件 mixer，原生 HAL 标识 MTK/MStar。这里只能证明配置具备混合路线，仍须实际试听。
+只读采集到内置 Speaker 支持 2 声道、48 kHz；另有 SPDIF 输出。厂商 audio_policy_configuration.xml 中 Speaker、SPDIF 的 route 类型为 mix，来源包括 primary output 与 HDMI In。AudioFlinger 有正常双声道软件 mixer，原生 HAL 标识 MTK/MStar。配置证据与下方用户实际试听结果分别记录。
 
 ## 启动验证边界
 
@@ -27,10 +27,15 @@ Chrome / WebKit 共 66 个 fixture 浏览器检查通过：三模式点选、键
 - 真实系统 MY_PACKAGE_REPLACED 触发自动后台启动已通过。
 - 模拟厂商 QUICKBOOT_POWERON：关闭偏好后不启动；重新开启后可启动前台接收服务和网页，且无等待小窗和音频输出。artifacts/v3-boot-smoke.json 的 5 项断言通过。
 - ADB shell 发送标准 BOOT_COMPLETED 被 Android 10 以 protected-broadcast 权限拒绝，因此模拟快速开机不能冒充真正冷启动。尚未重启电视验证系统实际 BOOT_COMPLETED 投递和厂商自启策略。
+- 用户明确选择“先不重启，保留自启设置”；保留开启状态，不为验证而重启或中断播放。真正开机后的自启仍待未来实际重开时确认。
 - 接收阶段只提升 connectedDevice 前台服务类型；实际播放投屏声音才加入 mediaPlayback。未测更新 Android 版本的启动行为。
 
 ## 混音现场结果
 
-等待用户试听电视 HDMI 有声内容与 iPhone 有声镜像，并记录 mixed 模式的焦点栈、音频流、TV HAL mute 状态和主观听感。当前不根据输出流打开或配置中的 mix 字段宣称两路均可听。
+用户按提示让 HDMI 盒子与 iPhone 镜像分别播放有声内容，在网页选择“混合声音”后确认：“两路都能听到，混合正常”。本台电视当前 HDMI 输入与 iPhone 镜像的同时发声已通过现场试听，无需左右声道拆分。
+
+收到确认后只读查询真实电视 /api/state：版本 0.3.0，mirroring=true，视频 1280×720，surfaceUpdates=1403，audio.source=mixed、volume=18、gain≈0.18、outputActive=true、focusHeld=false，autoStart=true。状态说明本应用在不持有独占焦点时正常输出音频，与用户试听相互印证；两路均可听的结论来自用户确认，不以 API 状态代替听感。
+
+未测量延迟、长期稳定性，也未将这一结果推广到其他电视、数字音频直通或外接音响路径。未进行左右声道隔离。
 
 所有设备日志/截图在忽略的 artifacts；不提交家庭媒体内容。
