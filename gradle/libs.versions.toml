@@ -2,7 +2,7 @@
 nanohttpd = "2.3.1"
 junit = "4.13.2"
 agp = "9.4.1"
-kotlin = "2.2.10"
+kotlin = "2.4.21"
 ksp = "2.3.12"
 compose-bom = "2026.05.00"
 hilt = "2.60.1"
