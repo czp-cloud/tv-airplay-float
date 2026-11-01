@@ -16,9 +16,9 @@ See the [manifest](app/src/main/AndroidManifest.xml) for the exact permission li
 
 ## Reporting a vulnerability
 
-Use your hosting platform's private vulnerability reporting channel when enabled. If no private channel is available, contact the repository owner through the host's private contact mechanism, or open an issue requesting a private contact without including the vulnerability details, logs or exploit.
+Use [GitHub's private vulnerability reporting form](https://github.com/czp-cloud/tv-airplay-float/security/advisories/new). Private vulnerability reporting is enabled for the public repository. If you cannot access that form, open an issue requesting a private contact without including the vulnerability details, logs or exploit.
 
-This repository has no published security response SLA or dedicated security email. Maintainers must configure a reachable private reporting channel before public launch; see the [publication guide](docs/maintainers/releases.md). No upstream project's security address is presented as responsible for this derivative.
+This repository has no published security response SLA or dedicated security email. The repository owner handles reports through GitHub; see the [publication guide](docs/maintainers/releases.md). No upstream project's security address is presented as responsible for this derivative.
 
 Include the affected revision, attack prerequisites, impact and a minimal reproduction over a private channel. Do not post receiver secrets, credentials or household captures.
 

@@ -16,7 +16,9 @@ Keep a source tag available with submodule revisions, patches, build instruction
 
 ## Public launch
 
-This preparation does not change the hosting repository's visibility or create a GitHub repository. Before a public launch:
+Public source is hosted at [czp-cloud/tv-airplay-float](https://github.com/czp-cloud/tv-airplay-float). Private vulnerability reporting is enabled through [GitHub Security Advisories](https://github.com/czp-cloud/tv-airplay-float/security/advisories/new). Preserve existing upstream and derivative history, including the immutable v0.3.3 milestone.
+
+For future releases or additional public mirrors:
 
 1. Choose the public host/owner/name and set its description, topics and default branch.
 2. Run and inspect CI on that host; do not add a passing badge before a real run.
@@ -26,7 +28,7 @@ This preparation does not change the hosting repository's visibility or create a
 6. If rewriting history or replacing tags is needed, obtain explicit authorization and retain a private backup. Do not force-push the private repository as incidental cleanup.
 7. Publish a source-only milestone or a deliberately signed APK, accurately labeled with its verification limits.
 
-Public repository creation, visibility changes and history rewriting are separate actions from this documentation preparation. Continue normal development in the configured private origin until the owner requests publication.
+Check the destination before every push. Keep the original upstream remote separate from project-owned hosts; never push this derivative to the upstream author's repository. Publishing a new mirror does not authorize changing another host's visibility or rewriting its history.
 
 ## Upstream updates
 
