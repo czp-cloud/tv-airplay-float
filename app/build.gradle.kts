@@ -33,8 +33,8 @@ android {
         applicationId = "dev.czp.tvairplay"
         minSdk = 26
         targetSdk = 37
-        versionCode = 40
-        versionName = "0.3.1-auto-aspect"
+        versionCode = 41
+        versionName = "0.3.2-right-edge"
 
         externalNativeBuild {
             cmake {

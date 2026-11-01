@@ -74,12 +74,20 @@ def main():
         check('long_edge_geometry', max(long_sized['width'], long_sized['height']) == long_sized['longEdge'] == 480)
         check('source_aspect_preserved', abs(long_sized['width'] - long_sized['height'] * long_sized['aspectRatio']) < max(1, long_sized['aspectRatio']))
         resized = ok('/api/size', {'width': 700})
-        check('absolute_resize_and_ratio', abs(resized['overlay']['width'] - 700) <= 1 and abs(resized['overlay']['width'] - resized['overlay']['height'] * resized['overlay']['aspectRatio']) < max(1, resized['overlay']['aspectRatio']))
+        o = resized['overlay']
+        expected_width = max(o['minWidth'], min(o['maxWidth'], 700))
+        check('absolute_resize_and_ratio', abs(o['width'] - expected_width) <= 1 and abs(o['width'] - o['height'] * o['aspectRatio']) < max(1, o['aspectRatio']))
         moved = ok('/api/move', {'dx': -24, 'dy': 24})
         check('direction_moves_window', moved['overlay']['x'] == resized['overlay']['x'] - 24 and moved['overlay']['y'] == resized['overlay']['y'] + 24)
         check('idle_controls_keep_overlay_hidden', not moved['overlay']['visible'])
         reset = ok('/api/reset', {})
         check('reset_small_corner', reset['overlay']['width'] <= 320 and reset['overlay']['x'] > 0)
+        check('reset_touches_right_edge', reset['overlay']['x'] + reset['overlay']['width'] == reset['overlay']['screenWidth'])
+        edge_sized = ok('/api/size', {'longEdge': 480})['overlay']
+        check('resizing_docked_window_keeps_right_edge', edge_sized['x'] + edge_sized['width'] == edge_sized['screenWidth'])
+        moved_off = ok('/api/move', {'dx': -48, 'dy': 0})['overlay']
+        free_sized = ok('/api/size', {'longEdge': 320})['overlay']
+        check('manual_move_remains_free_during_resize', free_sized['x'] == moved_off['x'])
         waiting_audio = ok('/api/audio', {'source': 'mirror'})['audio']
         check('idle_audio_does_not_claim_focus', waiting_audio['source'] == 'mirror' and not waiting_audio['outputActive'] and not waiting_audio['focusHeld'])
         mixed = ok('/api/audio', {'source': 'mixed'})['audio']

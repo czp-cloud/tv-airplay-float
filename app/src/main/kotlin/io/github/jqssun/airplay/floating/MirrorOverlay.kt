@@ -70,6 +70,7 @@ class MirrorOverlay(
             return false
         }
         clamp()
+        params.x = screen().x - params.width
         val panel = FrameLayout(context).apply { setBackgroundColor(Color.BLACK) }
         val texture = TextureView(context)
         var downX = 0f
@@ -109,6 +110,7 @@ class MirrorOverlay(
         root = panel
         return try {
             wm.addView(panel, params)
+            save()
             Log.i(TAG, "overlay_shown ${state()}")
             true
         } catch (e: Exception) {
@@ -125,7 +127,7 @@ class MirrorOverlay(
         val newAspect = width.toDouble() / height
         if (aspect != newAspect) {
             aspect = newAspect
-            update()
+            update(alignRight = true)
         }
         Log.i(TAG, "mirror_video $videoSize")
     }
@@ -147,9 +149,13 @@ class MirrorOverlay(
     }
 
     fun setLongEdge(longEdge: Int) {
+        val wasAtRightEdge = params.x + params.width == screen().x
         val g = geometry()
-        preferredLongEdge = longEdge.coerceIn(g.minLongEdge, g.maxLongEdge)
-        update()
+        val s = screen()
+        // A restored landscape preference can exceed the current portrait limit.
+        val preferenceLimit = maxOf(s.x * 4 / 5, s.y * 4 / 5, g.minLongEdge)
+        preferredLongEdge = longEdge.coerceIn(g.minLongEdge, preferenceLimit)
+        update(alignRight = wasAtRightEdge)
     }
 
     fun opacity(value: Float) {
@@ -164,7 +170,7 @@ class MirrorOverlay(
         val s = screen()
         preferredLongEdge = minOf(320, s.x / 4)
         clamp()
-        params.x = s.x - params.width - dp(8)
+        params.x = s.x - params.width
         params.y = dp(8)
         params.alpha = 1f
         update()
@@ -179,8 +185,9 @@ class MirrorOverlay(
         params.y = params.y.coerceIn(0, (s.y - params.height).coerceAtLeast(0))
     }
 
-    private fun update() {
+    private fun update(alignRight: Boolean = false) {
         clamp()
+        if (alignRight) params.x = screen().x - params.width
         root?.let { wm.updateViewLayout(it, params) }
         save()
         Log.i(TAG, "overlay_changed ${state()}")
