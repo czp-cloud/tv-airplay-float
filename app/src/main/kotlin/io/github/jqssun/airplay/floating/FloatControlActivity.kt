@@ -12,6 +12,8 @@ import android.os.IBinder
 import android.os.Looper
 import android.provider.Settings
 import android.view.KeyEvent
+import android.widget.CheckBox
+import io.github.jqssun.airplay.Prefs
 import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.ScrollView
@@ -39,7 +41,7 @@ class FloatControlActivity : Activity() {
             status.text = "悬浮窗：$permission　接收：$receiving\n" +
                 "镜像名称：电视投屏小窗\n" +
                 (if ((svc?.connectionCount?.value ?: 0) > 0) "手机已连接 · ${svc?.videoResolution?.value}" else "等待同一局域网内的 iPhone") +
-                "\n${if (editing) "调整中：方向键移动；返回键完成调整" else "默认电视原声，手机网页可切换投屏声音"}" +
+                "\n${if (editing) "调整中：方向键移动；返回键完成调整" else "声音模式：电视 / 投屏 / 混合，可在手机网页选择"}" +
                 (svc?.remoteInfo()?.let { info ->
                     val urls = info.getJSONArray("urls")
                     if (urls.length() > 0) "\n网页遥控器：${urls.getString(0)}" else ""
@@ -86,6 +88,14 @@ class FloatControlActivity : Activity() {
                     Intent(this, AirPlayService::class.java).setAction(AirPlayService.ACTION_START_SERVER))
             }
         }
+        layout.addView(CheckBox(this).apply {
+            text = "开机自动开启后台接收"
+            setTextColor(Color.WHITE)
+            isChecked = Prefs.BOOT_AUTO_START.read(getSharedPreferences(Prefs.NAME, MODE_PRIVATE))
+            setOnCheckedChangeListener { _, enabled ->
+                Prefs.BOOT_AUTO_START.write(getSharedPreferences(Prefs.NAME, MODE_PRIVATE), enabled)
+            }
+        })
         edit = button("调整小窗位置（方向键移动）") { editing = true }
         button("缩小小窗") { service?.resizeFloating(0.85f) }
         button("放大小窗") { service?.resizeFloating(1.18f) }

@@ -12,6 +12,11 @@ import android.content.SharedPreferences
 import android.content.pm.ServiceInfo
 import android.content.res.Configuration
 import android.graphics.BitmapFactory
+import android.net.ConnectivityManager
+import android.net.Network
+import android.net.LinkProperties
+import java.net.Inet4Address
+import java.net.NetworkInterface
 import android.media.AudioManager
 import android.os.Binder
 import android.os.Build
@@ -183,15 +188,47 @@ class AirPlayService : LifecycleService(), RaopCallbackHandler, LogListener {
     private val floating by lazy {
         MirrorOverlay(this, ::setVideoSurface, ::clearVideoSurface)
     }
+    private val connectivity by lazy { getSystemService(ConnectivityManager::class.java) }
+    private var networkCallbackRegistered = false
+    private var advertisedServices = emptyList<MdnsService>()
+    private var lastNetworkAddresses = ""
+    private fun localIpv4Addresses(): String = runCatching {
+        NetworkInterface.getNetworkInterfaces().toList().filter { it.isUp }
+            .flatMap { it.inetAddresses.toList() }.filterIsInstance<Inet4Address>()
+            .filter { it.isSiteLocalAddress }.mapNotNull { it.hostAddress }.sorted().joinToString(",")
+    }.getOrDefault("")
+    private val refreshDiscovery = Runnable {
+        val addresses = localIpv4Addresses()
+        if (_serverState.value == ServerState.RUNNING && !prefs[Prefs.USB_ONLY] &&
+            addresses != lastNetworkAddresses && advertisedServices.isNotEmpty()) {
+            lastNetworkAddresses = addresses
+            nsdManager?.release()
+            nsdManager = if (addresses.isEmpty()) null else NsdServiceManager(this).apply {
+                acquireMulticastLock()
+                register(advertisedServices)
+            }
+            Log.i(TAG, "LAN discovery refreshed after address change")
+        }
+    }
+    private fun scheduleDiscoveryRefresh() {
+        _mainHandler.removeCallbacks(refreshDiscovery)
+        _mainHandler.postDelayed(refreshDiscovery, 1000)
+    }
+    private val networkCallback = object : ConnectivityManager.NetworkCallback() {
+        override fun onAvailable(network: Network) = scheduleDiscoveryRefresh()
+        override fun onLost(network: Network) = scheduleDiscoveryRefresh()
+        override fun onLinkPropertiesChanged(network: Network, properties: LinkProperties) = scheduleDiscoveryRefresh()
+    }
     private val mirrorGeneration = AtomicLong()
-    private val mirrorAudio by lazy { MirrorAudioController(this, audioRenderer) }
+    private val mirrorAudio by lazy { MirrorAudioController(this, audioRenderer) { promoteToForeground(includeAudio = true) } }
     private var remoteServer: RemoteControlServer? = null
     private var remoteError = ""
 
     fun remoteState(): JSONObject = JSONObject().apply {
-        put("version", "0.2.1")
+        put("version", "0.3.0")
         put("receiver", prefs[Prefs.SERVER_NAME])
         put("server", _serverState.value.name)
+        put("autoStart", prefs[Prefs.BOOT_AUTO_START])
         put("mirroring", _mirroringActive.value)
         put("overlay", floating.state())
         put("audio", mirrorAudio.state())
@@ -231,6 +268,7 @@ class AirPlayService : LifecycleService(), RaopCallbackHandler, LogListener {
                     "reset" -> floating.compact()
                     "audio" -> mirrorAudio.select(body.getString("source"))
                     "volume" -> mirrorAudio.setVolume(body.getInt("volume"))
+                    "autostart" -> Prefs.BOOT_AUTO_START.write(prefs, body.getBoolean("enabled"))
                 }
             }
             server.start(5000, true)
@@ -295,6 +333,10 @@ class AirPlayService : LifecycleService(), RaopCallbackHandler, LogListener {
     override fun onCreate() {
         super.onCreate()
         localInstance = this
+        try {
+            connectivity.registerDefaultNetworkCallback(networkCallback)
+            networkCallbackRegistered = true
+        } catch (e: RuntimeException) { Log.w(TAG, "network_monitor_unavailable", e) }
         videoRenderer.onFirstDecodedFrame = {
             val generation = mirrorGeneration.get()
             _mainHandler.post {
@@ -436,13 +478,13 @@ class AirPlayService : LifecycleService(), RaopCallbackHandler, LogListener {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         super.onStartCommand(intent, flags, startId)
-        if (intent?.action == ACTION_START_SERVER) {
+        if (intent == null || intent.action == ACTION_START_SERVER) {
             promoteToForeground()
             _startServer(ensureServiceStarted = false)
             if (_serverState.value != ServerState.RUNNING) stopSelf(startId)
         }
         if (intent?.action == ACTION_STOP_SERVER) stopServer()
-        return START_NOT_STICKY
+        return if (_serverState.value == ServerState.RUNNING) START_STICKY else START_NOT_STICKY
     }
 
     fun startServer() {
@@ -546,6 +588,8 @@ class AirPlayService : LifecycleService(), RaopCallbackHandler, LogListener {
             if (advertiseAudio) add(MdnsService(raopName, "_raop._tcp", port, raopTxt))
             add(MdnsService(resolvedName, "_airplay._tcp", port, airplayTxt))
         }
+        advertisedServices = services
+        lastNetworkAddresses = localIpv4Addresses()
         if (prefs[Prefs.USB_ONLY]) {
             usbAdvertiser = UsbMdnsAdvertiser(services) { iface, addr ->
                 log(if (iface == null) "USB link down" else "USB link up on $iface (${addr?.hostAddress})")
@@ -632,6 +676,8 @@ class AirPlayService : LifecycleService(), RaopCallbackHandler, LogListener {
     }
 
     private fun _shutdown() {
+        _mainHandler.removeCallbacks(refreshDiscovery)
+        advertisedServices = emptyList()
         mirrorGeneration.incrementAndGet()
         _mirroringActive.value = false
         floating.hide()
@@ -730,6 +776,10 @@ class AirPlayService : LifecycleService(), RaopCallbackHandler, LogListener {
     }
 
     override fun onDestroy() {
+        if (networkCallbackRegistered) {
+            connectivity.unregisterNetworkCallback(networkCallback)
+            networkCallbackRegistered = false
+        }
         stopServer()
         if (localInstance === this) localInstance = null
         dacpPlayer.release()
@@ -1150,12 +1200,13 @@ class AirPlayService : LifecycleService(), RaopCallbackHandler, LogListener {
         return _buildMediaNotification()
     }
 
-    private fun promoteToForeground() {
+    private fun promoteToForeground(includeAudio: Boolean = false) {
         ServiceCompat.startForeground(
             this,
             NOTIFICATION_ID,
             buildNotification(),
-            ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE or ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK
+            ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE or
+                (if (includeAudio) ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK else 0)
         )
         foregroundStarted = true
     }

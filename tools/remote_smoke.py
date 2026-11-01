@@ -63,6 +63,7 @@ def main():
         check('invalid_volume_high_rejected', call('/api/volume', {'volume': 101})[0] == 400)
         check('invalid_volume_low_rejected', call('/api/volume', {'volume': -1})[0] == 400)
         check('noninteger_volume_rejected', call('/api/volume', {'volume': 30.5})[0] == 400)
+        check('invalid_autostart_type_rejected', call('/api/autostart', {'enabled': 'true'})[0] == 400)
         check('invalid_audio_source_rejected', call('/api/audio', {'source': 'other'})[0] == 400)
         check('get_cannot_change_window', call('/api/reset', method='GET')[0] == 405)
         check('path_traversal_rejected', call('/../local.properties')[0] == 404)
@@ -75,6 +76,8 @@ def main():
         check('reset_small_corner', reset['overlay']['width'] <= 320 and reset['overlay']['x'] > 0)
         waiting_audio = ok('/api/audio', {'source': 'mirror'})['audio']
         check('idle_audio_does_not_claim_focus', waiting_audio['source'] == 'mirror' and not waiting_audio['outputActive'] and not waiting_audio['focusHeld'])
+        mixed = ok('/api/audio', {'source': 'mixed'})['audio']
+        check('idle_mixed_keeps_TV_focus', mixed['source'] == 'mixed' and not mixed['outputActive'] and not mixed['focusHeld'])
         tv_audio = ok('/api/audio', {'source': 'tv'})['audio']
         check('tv_audio_releases_output_and_focus', tv_audio['source'] == 'tv' and not tv_audio['outputActive'] and not tv_audio['focusHeld'])
         for volume in (0, 35, 100):
@@ -84,6 +87,8 @@ def main():
         ok('/api/audio', {'source': 'mirror'})
         check('source_switch_keeps_volume', ok('/api/state')['audio']['volume'] == 100)
         ok('/api/audio', {'source': 'tv'})
+        check('disable_autostart', ok('/api/autostart', {'enabled': False})['autoStart'] is False)
+        check('enable_autostart', ok('/api/autostart', {'enabled': True})['autoStart'] is True)
     finally:
         if original and not original['mirroring']:
             try:
@@ -96,6 +101,7 @@ def main():
                     current = ok('/api/move', {'dx': max(-96, min(96, dx)), 'dy': max(-96, min(96, dy))})
                 ok('/api/audio', {'source': 'tv'})
                 ok('/api/volume', {'volume': original['audio'].get('volume', 100)})
+                ok('/api/autostart', {'enabled': original.get('autoStart', True)})
             except Exception as error:
                 checks.append({'name': 'restore_settings', 'passed': False, 'error': str(error)})
         args.out.parent.mkdir(parents=True, exist_ok=True)

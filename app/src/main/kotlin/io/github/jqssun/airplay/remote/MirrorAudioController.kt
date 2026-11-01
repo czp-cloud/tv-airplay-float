@@ -10,7 +10,11 @@ import io.github.jqssun.airplay.renderer.AudioRenderer
 import org.json.JSONObject
 
 /** Main-thread audio policy. Never mutes or changes the shared TV volume. */
-class MirrorAudioController(context: Context, private val renderer: AudioRenderer) {
+class MirrorAudioController(
+    context: Context,
+    private val renderer: AudioRenderer,
+    private val beforeOutput: () -> Unit = {},
+) {
     private val prefs = context.getSharedPreferences("mirror_audio", Context.MODE_PRIVATE)
     private var volume = prefs.getInt("volume", 100).coerceIn(0, 100)
     private val manager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
@@ -22,6 +26,8 @@ class MirrorAudioController(context: Context, private val renderer: AudioRendere
     private var outputActive = false
     private var message = "正在播放电视原声"
     private val listener = AudioManager.OnAudioFocusChangeListener { change ->
+        // Ignore queued callbacks from a focus request that a mode change has abandoned.
+        if (requested != "mirror") return@OnAudioFocusChangeListener
         when (change) {
             AudioManager.AUDIOFOCUS_GAIN -> {
                 focusHeld = true
@@ -55,7 +61,7 @@ class MirrorAudioController(context: Context, private val renderer: AudioRendere
     }
 
     fun select(source: String) {
-        require(source == "tv" || source == "mirror")
+        require(source in setOf("tv", "mirror", "mixed"))
         requested = source
         refresh()
     }
@@ -86,9 +92,20 @@ class MirrorAudioController(context: Context, private val renderer: AudioRendere
             releaseFocus()
             message = when {
                 requested == "tv" -> "正在播放电视原声"
-                !mirrorActive -> "连接投屏后切换声音"
+                !mirrorActive -> if (requested == "mixed") "连接投屏后混合播放" else "连接投屏后切换声音"
                 else -> "等待手机发送音频"
             }
+            return
+        }
+        if (requested == "mixed") {
+            // Explicit simultaneous-playback mode on this TV: preserve the HDMI player's
+            // focus and allow the HAL/mixer to combine its path with our shared AAudio stream.
+            releaseFocus()
+            startOutput()
+            return
+        }
+        if (focusRequested && !focusHeld) {
+            message = "声音被其他应用暂时占用"
             return
         }
         if (!focusHeld) {
@@ -104,12 +121,14 @@ class MirrorAudioController(context: Context, private val renderer: AudioRendere
     }
 
     private fun startOutput() {
-        if (outputActive) return
-        format?.let { renderer.setFormat(it.first, it.second) }
-        renderer.setClientGain(volume / 100f)
-        outputActive = renderer.start()
+        if (!outputActive) {
+            beforeOutput()
+            format?.let { renderer.setFormat(it.first, it.second) }
+            renderer.setClientGain(volume / 100f)
+            outputActive = renderer.start()
+        }
         if (outputActive) {
-            message = "正在播放投屏声音"
+            message = if (requested == "mixed") "电视原声与投屏声音同时播放" else "正在播放投屏声音"
         } else {
             requested = "tv"
             renderer.stop() // Clear the native requested-running flag even after open failure.
@@ -124,9 +143,10 @@ class MirrorAudioController(context: Context, private val renderer: AudioRendere
     }
 
     private fun releaseFocus() {
-        if (focusRequested) manager.abandonAudioFocusRequest(focus)
+        val wasRequested = focusRequested
         focusRequested = false
         focusHeld = false
+        if (wasRequested) manager.abandonAudioFocusRequest(focus)
     }
 
     fun state(): JSONObject = JSONObject().apply {

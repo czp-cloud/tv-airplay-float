@@ -1,7 +1,7 @@
 'use strict';
 (() => {
   const $ = id => document.getElementById(id);
-  const ui = Object.fromEntries(['dashboard','connectionDot','connectionLabel','miniWindow','mirrorBadge','stage','stageStatus','sizeSlider','sizeValue','audioSwitch','audioMessage','mirrorVolumeControl','volumeSlider','volumeValue','resetButton','toast','stick'].map(id => [id, $(id)]));
+  const ui = Object.fromEntries(['dashboard','connectionDot','connectionLabel','miniWindow','mirrorBadge','stage','stageStatus','sizeSlider','sizeValue','audioMessage','mirrorVolumeControl','volumeSlider','volumeValue','resetButton','toast','stick','autoStartSwitch'].map(id => [id, $(id)]));
   let state = null, online = false, busy = false, pollBusy = false, sizing = false, adjustingVolume = false;
   let sequence = 0, applied = 0, toastTimer;
   const pending = new Map();
@@ -64,9 +64,10 @@
     const width = Number(ui.sizeSlider.value);
     preview({...overlay, width, height: Math.floor(width * 9 / 16)});
     sliderAppearance(width, overlay);
-    ui.audioSwitch.setAttribute('aria-checked', String(data.audio.source === 'mirror'));
+    setAudioMode(data.audio.source);
+    if (!pending.has('autostart')) ui.autoStartSwitch.checked = Boolean(data.autoStart);
     ui.audioMessage.textContent = data.audio.message;
-    ui.mirrorVolumeControl.hidden = data.audio.source !== 'mirror';
+    ui.mirrorVolumeControl.hidden = data.audio.source === 'tv';
     if (!adjustingVolume && !pending.has('volume')) ui.volumeSlider.value = data.audio.volume ?? 100;
     volumeAppearance(Number(ui.volumeSlider.value));
   }
@@ -177,29 +178,28 @@
     enqueue('volume', {volume: Number(ui.volumeSlider.value)});
   });
   ui.resetButton.addEventListener('click', () => { stopHold(); enqueue('reset', {}); });
-  let suppressSoundClick = false;
-  ui.audioSwitch.addEventListener('click', event => {
-    if (suppressSoundClick) { suppressSoundClick = false; return; }
-    let source;
-    const rect = ui.audioSwitch.getBoundingClientRect();
-    if (event.detail === 0) source = ui.audioSwitch.getAttribute('aria-checked') === 'true' ? 'tv' : 'mirror';
-    else source = event.clientX - rect.left < rect.width / 2 ? 'tv' : 'mirror';
-    ui.audioSwitch.setAttribute('aria-checked', String(source === 'mirror'));
-    enqueue('audio', {source});
+  function setAudioMode(source) {
+    document.querySelectorAll('.audio-mode').forEach(button => {
+      const selected = button.dataset.source === source;
+      button.setAttribute('aria-checked', String(selected));
+      button.tabIndex = selected ? 0 : -1;
+    });
+    ui.mirrorVolumeControl.hidden = source === 'tv';
+  }
+  const audioModes = Array.from(document.querySelectorAll('.audio-mode'));
+  audioModes.forEach((button, index) => {
+    button.addEventListener('click', () => { setAudioMode(button.dataset.source); enqueue('audio', {source: button.dataset.source}); });
+    button.addEventListener('keydown', event => {
+      let next;
+      if (event.key === 'ArrowRight') next = (index + 1) % audioModes.length;
+      else if (event.key === 'ArrowLeft') next = (index + audioModes.length - 1) % audioModes.length;
+      else if (event.key === 'Home') next = 0;
+      else if (event.key === 'End') next = audioModes.length - 1;
+      else return;
+      event.preventDefault(); audioModes[next].focus(); audioModes[next].click();
+    });
   });
-  // A horizontal thumb swipe works as well as tapping either half.
-  let soundDown = null;
-  ui.audioSwitch.addEventListener('pointerdown', event => { suppressSoundClick = false; soundDown = event.clientX; });
-  ui.audioSwitch.addEventListener('pointerup', event => {
-    if (soundDown !== null && Math.abs(event.clientX - soundDown) > 25) {
-      suppressSoundClick = true;
-      const source = event.clientX > soundDown ? 'mirror' : 'tv';
-      ui.audioSwitch.setAttribute('aria-checked', String(source === 'mirror'));
-      enqueue('audio', {source});
-    }
-    soundDown = null;
-  });
-  ui.audioSwitch.addEventListener('pointercancel', () => { soundDown = null; });
+  ui.autoStartSwitch.addEventListener('change', () => enqueue('autostart', {enabled: ui.autoStartSwitch.checked}));
   network(false, '正在连接');
   poll();
   setInterval(poll, 1500);

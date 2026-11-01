@@ -1,12 +1,12 @@
 # 电视同时发声与左右声道：可行性研究
 
-结论：优先验证“电视原声 + 投屏声音同时播放”。让投屏 PCM 只出右声道在本应用里可实现；但这不等于能把 HDMI 原声只放左声道，后一半需要控制不属于本应用的电视音频路径。当前没有将混音或左右分离写成实机成功，也没有默认改变原有二选一行为。
+结论：优先验证“电视原声 + 投屏声音同时播放”。让投屏 PCM 只出右声道在本应用里可实现；但这不等于能把 HDMI 原声只放左声道，后一半需要控制不属于本应用的电视音频路径。0.3.0 已按用户要求增加 tv / mirror / mixed 三选项，但在现场试听通过前不将混音写作实机成功，左右分离仍未实现。
 
 ## 当前已知证据
 
 这台 MiTV-MTEQ0 为 Android 10。0.2.0 已现场证实电视与投屏声音可来回切换：投屏使用普通 UID 10051 的 AAudio，44100 Hz / 双声道；取得临时独占音频焦点时 TV 播放器收到 LOSS_TRANSIENT，释放后恢复。证据在 VALIDATION_V2.md。
 
-既有 dumpsys 中 STREAM_MUSIC 标记 SPDIF，而 Audio routes 的 mMainType=0x0。不能仅凭这个标签认定声音实际来自外置音箱，也不能据此认定电视左右物理单元能被单独寻址。尚未拿到实时 AudioPolicy/AudioFlinger 的端口、patch、设备声道能力和厂商配置。目前主机无法连接电视，新增的只读音频设备诊断也尚未在本机运行。
+既有 dumpsys 中 STREAM_MUSIC 标记 SPDIF，而 Audio routes 的 mMainType=0x0。不能仅凭这个标签认定声音实际来自外置音箱，也不能据此认定电视左右物理单元能被单独寻址。后续 0.3.0 实机采集已得到 AudioPolicy / AudioFlinger / 厂商配置：内置 Speaker 为双声道 48kHz，Speaker 和 SPDIF 路由声明 type=mix，来源同时包含 primary output 与 HDMI In；配置与听感仍分开验收。最新设备证据见 VALIDATION_V3.md。
 
 ## 路线比较
 
@@ -52,4 +52,4 @@ TV 原声仍会在它自己的通路里播放，通常不会因为我们左声�
 python3 tools/inspect_tv_audio.py --host <电视IP> --expected-model MiTV-MTEQ0
 ```
 
-下一步的决定取决于上述实时证据：优先确认自然混音；若确实只能互斥，再查厂商接口，而不把尚未完成的左右隔离展示成产品功能。
+当前已进入自然混音实测阶段。若确实只能互斥，再查厂商接口；不把尚未完成的左右隔离展示成产品功能。

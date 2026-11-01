@@ -33,8 +33,8 @@ android {
         applicationId = "dev.czp.tvairplay"
         minSdk = 26
         targetSdk = 37
-        versionCode = 38
-        versionName = "0.2.1-web-remote"
+        versionCode = 39
+        versionName = "0.3.0-mixed-audio"
 
         externalNativeBuild {
             cmake {

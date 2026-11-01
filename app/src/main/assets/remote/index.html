@@ -17,6 +17,7 @@
     <symbol id="i-arrow" viewBox="0 0 24 24"><path d="m6 14 6-6 6 6"/></symbol>
     <symbol id="i-reset" viewBox="0 0 24 24"><path d="M4 10a8 8 0 1 1 1 8M4 4v6h6"/></symbol>
     <symbol id="i-move" viewBox="0 0 24 24"><path d="M12 3v18M3 12h18m-12-6 3-3 3 3m-6 12 3 3 3-3M6 9l-3 3 3 3m12-6 3 3-3 3"/></symbol>
+    <symbol id="i-mix" viewBox="0 0 24 24"><path d="M3 7h4c5 0 5 10 10 10h4M3 17h4c5 0 5-10 10-10h4m-3-3 3 3-3 3m0 4 3 3-3 3"/></symbol>
     <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="11" rx="3"/><path d="M8 10V7a4 4 0 0 1 8 0v3m-4 4v3"/></symbol>
     <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></symbol>
   </defs></svg>
@@ -54,8 +55,12 @@
           <div class="position-footer"><span class="hint">也可以拖动中央摇杆</span><button id="resetButton" class="text-button"><svg><use href="#i-reset"/></svg>恢复右上角</button></div>
         </section>
         <section class="card audio-card" aria-labelledby="audioTitle">
-          <div class="card-heading"><h2 id="audioTitle">声音从哪里来</h2><span class="audio-tag">二选一</span></div>
-          <button id="audioSwitch" class="audio-switch" role="switch" aria-checked="false" aria-label="播放投屏声音" aria-describedby="audioHelp"><span class="switch-thumb"></span><span class="audio-choice tv"><svg><use href="#i-tv"/></svg>电视原声</span><span class="audio-choice mirror"><svg><use href="#i-airplay"/></svg>投屏声音</span></button>
+          <div class="card-heading"><h2 id="audioTitle">声音从哪里来</h2><span class="audio-tag">三种模式</span></div>
+          <div class="audio-modes" role="radiogroup" aria-label="声音模式" aria-describedby="audioHelp">
+            <button class="audio-mode" data-source="tv" role="radio" aria-checked="true" tabindex="0"><svg><use href="#i-tv"/></svg><span>仅电视</span></button>
+            <button class="audio-mode" data-source="mirror" role="radio" aria-checked="false" tabindex="-1"><svg><use href="#i-airplay"/></svg><span>仅投屏</span></button>
+            <button class="audio-mode" data-source="mixed" role="radio" aria-checked="false" tabindex="-1"><svg><use href="#i-mix"/></svg><span>混合声音</span></button>
+          </div>
           <p id="audioHelp" class="hint"><span class="tiny-dot"></span><span id="audioMessage">正在播放电视原声</span></p>
           <div id="mirrorVolumeControl" class="volume-control" hidden>
             <div class="control-heading"><label for="volumeSlider">投屏音量</label><output id="volumeValue" for="volumeSlider">100%</output></div>
@@ -63,6 +68,10 @@
             <div class="range-labels"><span>静音</span><span>100%</span></div>
             <p id="volumeHelp" class="hint">只调整投屏声音，电视原声音量保持不变。</p>
           </div>
+        </section>
+        <section class="card startup-card">
+          <div class="startup-copy"><h2><label for="autoStartSwitch">开机自动接收</label></h2><p class="hint">后台启动，未投屏时不显示小窗。</p></div>
+          <input id="autoStartSwitch" class="startup-toggle" type="checkbox" role="switch" aria-label="开机自动接收">
         </section>
       </div>
       <div id="toast" class="toast" role="status" hidden></div>

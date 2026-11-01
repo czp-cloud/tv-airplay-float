@@ -75,7 +75,7 @@ object Prefs {
     val SERVER_NAME = str("server_name", "电视投屏小窗", restart = true)
     val SERVER_PORT = int("server_port", 7000, 1..65535, restart = true)
     val AUTO_START = bool("auto_start", false)
-    val BOOT_AUTO_START = bool("boot_auto_start", false)
+    val BOOT_AUTO_START = bool("boot_auto_start", true)
     val RUN_IN_BACKGROUND = bool("run_in_background", true)
     val H265 = str("h265", OFF, restart = true) { it in setOf(AUTO, ON, OFF) }
     val ENFORCE_SDR = bool("enforce_sdr", true, restart = true)

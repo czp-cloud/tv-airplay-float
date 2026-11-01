@@ -75,6 +75,7 @@ class RemoteControlServer(
                 "/api/size" -> "size"
                 "/api/audio" -> "audio"
                 "/api/volume" -> "volume"
+                "/api/autostart" -> "autostart"
                 "/api/reset" -> "reset"
                 else -> return error(Response.Status.NOT_FOUND, "接口不存在")
             }
@@ -87,7 +88,8 @@ class RemoteControlServer(
                 }
                 "size" -> { require(body.length() == 1); requireInt(body, "width", 1..16384) }
                 "volume" -> { require(body.length() == 1); requireInt(body, "volume", 0..100) }
-                "audio" -> require(body.length() == 1 && body.opt("source") in setOf("tv", "mirror"))
+                "audio" -> require(body.length() == 1 && body.opt("source") in setOf("tv", "mirror", "mixed"))
+                "autostart" -> require(body.length() == 1 && body.opt("enabled") is Boolean)
                 "reset" -> require(body.length() == 0)
             }
             return json(onMain { command(action, body); snapshot() })
