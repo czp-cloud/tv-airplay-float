@@ -57,10 +57,11 @@
 
 ## 构建与检查
 
-使用仓库页面的 clone URL 克隆，带上 `--recurse-submodules`，进入项目后执行：
+克隆公开仓库及固定版本的子模块，然后构建：
 
 ```sh
-git submodule update --init --recursive
+git clone --recurse-submodules https://github.com/czp-cloud/tv-airplay-float.git
+cd tv-airplay-float
 ./gradlew --no-daemon :app:assembleDebug :app:lintDebug :app:testDebugUnitTest -PtargetAbi=armeabi-v7a
 ```
 

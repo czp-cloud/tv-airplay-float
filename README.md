@@ -57,10 +57,11 @@ Other TVs, HDMI routes and external audio systems need their own checks. Audio f
 
 ## Build and check
 
-Clone this repository using its clone URL with `--recurse-submodules`, then run:
+Clone the public repository with its pinned submodules, then run:
 
 ```sh
-git submodule update --init --recursive
+git clone --recurse-submodules https://github.com/czp-cloud/tv-airplay-float.git
+cd tv-airplay-float
 ./gradlew --no-daemon :app:assembleDebug :app:lintDebug :app:testDebugUnitTest -PtargetAbi=armeabi-v7a
 ```
 

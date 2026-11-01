@@ -4,7 +4,7 @@ Thanks for helping make the receiver work on more TVs. Start with the [architect
 
 ## Before a change
 
-Open an issue for a substantial behavior change. A small bug fix or documentation correction can go straight to a pull request. Explain the concrete use case, device constraints and expected behavior.
+Open an [issue](https://github.com/czp-cloud/tv-airplay-float/issues) for a substantial behavior change. A small bug fix or documentation correction can go straight to a [pull request](https://github.com/czp-cloud/tv-airplay-float/pulls). Explain the concrete use case, device constraints and expected behavior.
 
 Preserve the project license, upstream attribution and existing Git history. No contributor license agreement is currently used; contributions are made under the repository license.
 

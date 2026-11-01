@@ -12,6 +12,7 @@ Repository preparation for public collaboration; the installed application versi
 - Replace the inherited signing-dependent release workflow with pinned build/lint/test CI and dependency-update configuration.
 - Pin the Gradle distribution checksum and centralize existing NanoHTTPD/JUnit versions without upgrading them.
 - Remove upstream store listing/screenshots that do not describe this derivative; remove private network addresses from current documents.
+- Add the GitHub clone URL and contribution entry points for the public repository.
 
 ## v0.3.3 — 2026-11-01
 

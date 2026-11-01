@@ -17,7 +17,14 @@ macOS was used for the recorded local builds. CI is configured for Ubuntu 24.04.
 
 ## Obtain the sources
 
-Clone using the URL of the repository you are viewing, with `--recurse-submodules`. If you already cloned without them:
+Clone the public repository with its pinned submodules:
+
+```sh
+git clone --recurse-submodules https://github.com/czp-cloud/tv-airplay-float.git
+cd tv-airplay-float
+```
+
+If you already cloned without submodules:
 
 ```sh
 git submodule update --init --recursive
