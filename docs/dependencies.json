@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "catalog": "gradle/libs.versions.toml",
+  "native_submodules": {
+    "UxPlay": {
+      "path": "app/src/main/cpp/third_party/UxPlay",
+      "revision": "df67c212a433cf6dda3676dd40c097900d24e645"
+    },
+    "ffmpeg": {
+      "path": "app/src/main/cpp/third_party/ffmpeg",
+      "revision": "38b88335f99e76ed89ff3c93f877fdefce736c13"
+    },
+    "libplist": {
+      "path": "app/src/main/cpp/third_party/libplist",
+      "revision": "f41b1ea67045e0c09339974d83e389972d84f166"
+    },
+    "openssl-cmake": {
+      "path": "app/src/main/cpp/third_party/openssl-cmake",
+      "revision": "4edd36a8dab5f85a8f92650b5bdf6e0cab13aab8"
+    }
+  },
+  "openssl_version": "3.4.4",
+  "node_tools": "tools/package-lock.json",
+  "device_tools": "tools/requirements-device.txt",
+  "scope": "Direct dependency inventory; inspect resolved Gradle/npm/pip graphs for transitive dependencies."
+}

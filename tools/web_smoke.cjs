@@ -6,7 +6,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const assert = require('node:assert/strict');
 const root = path.join(__dirname, '../app/src/main/assets/remote');
-const out = path.resolve(process.env.QA_OUT || 'artifacts/web-smoke');
+const out = process.env.QA_OUT ? path.resolve(process.env.QA_OUT) : path.join(__dirname, '../artifacts/web-smoke');
 fs.mkdirSync(out, {recursive:true});
 let state, offline = false, commands = 0;
 function reset() {
@@ -52,7 +52,12 @@ async function until(condition) {for(let i=0;i<50;i++){if(condition())return;awa
   const url=`http://127.0.0.1:${server.address().port}`;
   for(const engine of ['chromium','webkit']) {
     reset();
-    const browser=await (engine==='webkit'?webkit:chromium).launch(engine==='chromium'?{headless:true,args:['--disable-gpu'],executablePath:'/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'}:{headless:true});
+    const launchOptions = {headless:true};
+    if(engine==='chromium') {
+      launchOptions.args=['--disable-gpu'];
+      if(process.env.CHROME_EXECUTABLE) launchOptions.executablePath=process.env.CHROME_EXECUTABLE;
+    }
+    const browser=await (engine==='webkit'?webkit:chromium).launch(launchOptions);
     try {
       const context=await browser.newContext({viewport:{width:390,height:844},deviceScaleFactor:2,isMobile:true,hasTouch:true,reducedMotion:'reduce'});
       const page=await context.newPage();const errors=[];page.on('pageerror',e=>errors.push(e.message));

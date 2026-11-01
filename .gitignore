@@ -17,3 +17,18 @@ __pycache__/
 *.pyc
 
 .kotlin/
+
+# Local development and credentials
+node_modules/
+.venv/
+.env
+.env.*
+!.env.example
+.secrets/
+*.keystore
+*.p12
+*.pfx
+*.apk
+*.aab
+playwright-report/
+test-results/

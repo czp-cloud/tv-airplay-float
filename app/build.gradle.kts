@@ -112,8 +112,8 @@ tasks.configureEach {
 }
 
 dependencies {
-    testImplementation("junit:junit:4.13.2")
-    implementation("org.nanohttpd:nanohttpd:2.3.1")
+    testImplementation(libs.junit)
+    implementation(libs.nanohttpd)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.lifecycle.runtime)

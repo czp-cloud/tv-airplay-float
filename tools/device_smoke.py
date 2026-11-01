@@ -22,7 +22,7 @@ def main():
     parser.add_argument('--host', required=True)
     parser.add_argument('--expected-model', required=True)
     parser.add_argument('--apk', type=Path)
-    parser.add_argument('--already-uploaded', action='store_true', help='Skip sync push after verified b64push; still verify SHA-256')
+    parser.add_argument('--already-uploaded', action='store_true', help='APK is already in /data/local/tmp/tv-airplay-float.apk; verify SHA-256 before installing')
     parser.add_argument('--compact-only', action='store_true', help='Background-only checks, never open control Activity')
     parser.add_argument('--out', type=Path, default=Path('artifacts/device-smoke'))
     args = parser.parse_args()
@@ -89,7 +89,7 @@ def main():
             check('airplay_server_running', compact['server'] == 'RUNNING', compact)
             window = compact['overlay']
             check('idle_window_hidden', not window['visible'] and not compact['mirroring'], window)
-            check('frameless_compact_geometry', window['width'] <= 320 and window['height'] == window['width'] * 9 // 16 and not window['chrome'], window)
+            check('frameless_compact_geometry', max(window['width'], window['height']) <= 320 and abs(window['width'] - window['height'] * window['aspectRatio']) < max(1, window['aspectRatio']) and not window['chrome'], window)
             check('fully_opaque', abs(window['opacity'] - 1) < 0.001, window)
             focus_after = [s.strip() for s in shell('dumpsys window').splitlines() if 'mCurrentFocus=' in s]
             check('foreground_unchanged', focus_after == focus_before, focus_after)

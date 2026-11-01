@@ -1,0 +1,17 @@
+name: Feature request
+description: Propose a concrete user-facing improvement.
+title: "[Feature] "
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Use case
+      description: What are you trying to do, on which devices?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behavior and constraints
+    validations:
+      required: true

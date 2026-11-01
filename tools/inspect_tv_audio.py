@@ -11,7 +11,7 @@ from adb_shell.auth.sign_pythonrsa import PythonRSASigner
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--host', required=True)
-    parser.add_argument('--expected-model', default='MiTV-MTEQ0')
+    parser.add_argument('--expected-model', required=True)
     parser.add_argument('--out', type=Path, default=Path('artifacts/audio-inventory'))
     args = parser.parse_args()
     key = Path.home() / '.android/adbkey'

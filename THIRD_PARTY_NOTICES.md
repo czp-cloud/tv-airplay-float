@@ -1,16 +1,29 @@
-# Additional dependency notices
+# Third-party notices
 
-The upstream project and its existing native dependencies retain their original licenses. This fork additionally embeds NanoHTTPD 2.3.1 (`org.nanohttpd:nanohttpd`), from https://github.com/NanoHttpd/nanohttpd, under BSD-3-Clause:
+TV AirPlay Float is derived from [jqssun/android-airplay-server](https://github.com/jqssun/android-airplay-server), baseline a46cca0a6a1274e9e33c0e750f0f1c1eb1d881ea. The repository retains upstream history, source copyright headers and the root [GPL-3.0 license](LICENSE). Renaming the application or reorganizing documentation does not remove those notices.
 
-Copyright (c) 2012-2013 by Paul S. Hawke, 2001,2005-2013 by Jarno Elonen, 2010 by Konstantinos Togias
-All rights reserved.
+## Bundled/native components
 
-Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
+| Component | Notice/license location |
+| --- | --- |
+| UxPlay | [GPL-3.0](app/src/main/cpp/third_party/UxPlay/LICENSE), source headers and pinned submodule |
+| playfair in UxPlay | [GPL-3.0](app/src/main/cpp/third_party/UxPlay/lib/playfair/LICENSE.md) |
+| llhttp in UxPlay | [MIT and Fedor Indutny notice](LICENSES/llhttp-MIT.txt) |
+| libplist and libcnary | [libplist LGPL-2.1](app/src/main/cpp/third_party/libplist/COPYING.LESSER), [libcnary notice](app/src/main/cpp/third_party/libplist/libcnary/COPYING) and source headers |
+| FFmpeg subset | [Upstream license description](app/src/main/cpp/third_party/ffmpeg/LICENSE.md), [LGPL-2.1 text](LICENSES/LGPL-2.1.txt) and per-file notices |
+| OpenSSL | [Apache-2.0](LICENSES/Apache-2.0.txt), OpenSSL source notices |
+| openssl-cmake | [MIT / ViaDuck notice](LICENSES/openssl-cmake-MIT.txt) |
+| Oboe | [Upstream license at 1.9.3](https://github.com/google/oboe/blob/1.9.3/LICENSE) |
+| NanoHTTPD | [BSD-3-Clause and full copyright notice](LICENSES/NanoHTTPD-BSD-3-Clause.txt) |
 
-* Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.
+## Android and development libraries
 
-* Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the documentation and/or other materials provided with the distribution.
+AndroidX/Compose/Media3, Kotlin coroutines, Dagger/Hilt and Playwright declare Apache-2.0 licensing. JUnit declares EPL-1.0. Exact coordinates, declared versions, roles and source links are listed in [docs/dependencies.md](docs/dependencies.md). Optional host-only adb-shell tooling is separate from the APK.
 
-* Neither the name of the NanoHttpd organization nor the names of its contributors may be used to endorse or promote products derived from this software without specific prior written permission.
+The original module source headers, Maven metadata and license files remain authoritative for their components and transitive dependencies. This document is an attribution index; it is not a replacement for those license texts or a complete binary SBOM.
 
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+## Source and binary packaging
+
+Keep the source tag, submodule revisions, patch series, build instructions and relevant notices with a distribution. Downloaded OpenSSL sources and submodule contents are not all included in a plain top-level Git ZIP. The [build guide](docs/development/building.md) explains obtaining them.
+
+The remote-preview image under docs/images is rendered from this project's web fixture. It contains synthetic state and no household capture. Legacy upstream store screenshots/listing metadata are not presented as screenshots or release channels of this derivative.

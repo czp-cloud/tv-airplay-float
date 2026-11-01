@@ -1,0 +1,25 @@
+name: Bug report
+description: Report a reproducible application or web-remote problem.
+title: "[Bug] "
+body:
+  - type: markdown
+    attributes:
+      value: "For vulnerabilities, read SECURITY.md. Remove personal content and device identifiers from logs."
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: TV model, Android/firmware, app version, sender and foreground app or HDMI input.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps, expected behavior, and actual result
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Redacted evidence
+      description: Distinguish actual picture/audio observations from API or fixture results.

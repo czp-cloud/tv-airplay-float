@@ -1,0 +1,2 @@
+# Optional host-side ADB diagnostics; not required to build the APK.
+adb-shell==0.4.4

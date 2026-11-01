@@ -1,15 +1,28 @@
-# 变更记录
+# Changelog
+
+## Unreleased
+
+Repository preparation for public collaboration; the installed application version is unchanged.
+
+- Add English/Chinese project overviews, a synthetic remote preview and a documentation index.
+- Group usage, architecture, research and dated validation records under docs/.
+- Add coding-agent guidance, contribution/security/conduct documents and issue/PR templates.
+- Document direct/runtime/native/build/test dependencies, submodule pins and third-party notices.
+- Add portable, lockfile-backed browser tooling, optional device requirements and repository checks.
+- Replace the inherited signing-dependent release workflow with pinned build/lint/test CI and dependency-update configuration.
+- Pin the Gradle distribution checksum and centralize existing NanoHTTPD/JUnit versions without upgrading them.
+- Remove upstream store listing/screenshots that do not describe this derivative; remove private network addresses from current documents.
 
 ## v0.3.3 — 2026-11-01
 
-首个发布里程碑；应用版本为 `0.3.3-opacity`，versionCode 42。发布前各次小版本对应迭代开发记录。
+First source milestone. Application version: 0.3.3-opacity; versionCode: 42. Earlier commits retain the development history rather than implying earlier public releases.
 
-- 新增普通应用权限的 AirPlay 悬浮小窗，接收和解码复用上游实现。
-- 有真实视频才显示，断开镜像自动隐藏，不弹全屏控制页。
-- 小窗自动跟随横竖屏比例；开始投屏和比例改变后贴最右边，支持手动移动与缩放。
-- 增加手机优先的局域网网页遥控器：摇杆、大小、透明度、音量、三种声音模式和自启设置。
-- 支持电视原声与投屏同时播放，在当前小米电视的 HDMI 场景通过用户试听。
-- 开机后台接收设置默认开启；安装后自启与模拟快速开机已验证，真正开机待后续确认。
-- 保留上游历史、许可证、Git submodule 和构建说明。
+- Rootless AirPlay floating window using the upstream receiver and decoding stack.
+- Display after decoded video and hide on mirror disconnect, without opening a full-screen control Activity.
+- Follow portrait/landscape geometry, dock right on connection/aspect changes, and allow manual movement/size adjustment.
+- Mobile LAN remote with joystick, size, opacity, volume, audio mode and startup controls.
+- TV-only, mirror-only and mixed audio; simultaneous HDMI and mirror audio confirmed on the tested TV.
+- Background-start preference enabled by default; package-update and simulated quick-boot startup verified, physical power-cycle validation pending.
+- Preserve upstream history, licenses, submodule revisions and build instructions.
 
-透明度滑条范围 12–100%，实时生效并持久保存；浏览器和电视 HTTP 校验通过，实际投屏视觉效果留待使用确认。当前 APK 为本地调试签名版本。设备日志、密钥、缓存和构建文件不纳入 Git。
+Opacity control ranges from 12–100%, updates live and persists. Browser/device HTTP checks passed; a separate visual acceptance remains pending. The locally tested APK uses a debug signature. Keys, caches, generated APKs, logs and household captures are excluded from Git.

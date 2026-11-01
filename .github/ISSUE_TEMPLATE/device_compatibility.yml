@@ -1,0 +1,30 @@
+name: Device compatibility
+description: Record actual behavior on a TV, input and audio route.
+title: "[Device] "
+body:
+  - type: input
+    id: model
+    attributes:
+      label: TV model and Android/firmware version
+    validations:
+      required: true
+  - type: input
+    id: versions
+    attributes:
+      label: App and sender/OS versions
+    validations:
+      required: true
+  - type: textarea
+    id: route
+    attributes:
+      label: Input and audio output
+      description: TV app or HDMI input; TV speakers, external output or passthrough; selected audio mode.
+    validations:
+      required: true
+  - type: textarea
+    id: observations
+    attributes:
+      label: Observed results
+      description: Mirror discovery/video, rotation, window movement, audio switching/mixing, disconnect and boot. Mark anything not tested.
+    validations:
+      required: true
