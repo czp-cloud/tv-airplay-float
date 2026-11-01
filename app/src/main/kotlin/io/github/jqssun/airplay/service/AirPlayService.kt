@@ -225,7 +225,7 @@ class AirPlayService : LifecycleService(), RaopCallbackHandler, LogListener {
     private var remoteError = ""
 
     fun remoteState(): JSONObject = JSONObject().apply {
-        put("version", "0.3.2")
+        put("version", "0.3.3")
         put("receiver", prefs[Prefs.SERVER_NAME])
         put("server", _serverState.value.name)
         put("autoStart", prefs[Prefs.BOOT_AUTO_START])
@@ -269,6 +269,7 @@ class AirPlayService : LifecycleService(), RaopCallbackHandler, LogListener {
                     "reset" -> floating.compact()
                     "audio" -> mirrorAudio.select(body.getString("source"))
                     "volume" -> mirrorAudio.setVolume(body.getInt("volume"))
+                    "opacity" -> floating.opacity(body.getInt("opacity") / 100f)
                     "autostart" -> Prefs.BOOT_AUTO_START.write(prefs, body.getBoolean("enabled"))
                 }
             }

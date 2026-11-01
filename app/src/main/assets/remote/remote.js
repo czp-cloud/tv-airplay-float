@@ -1,8 +1,8 @@
 'use strict';
 (() => {
   const $ = id => document.getElementById(id);
-  const ui = Object.fromEntries(['dashboard','connectionDot','connectionLabel','miniWindow','mirrorBadge','stage','stageStatus','sizeSlider','sizeValue','audioMessage','mirrorVolumeControl','volumeSlider','volumeValue','resetButton','toast','stick','autoStartSwitch'].map(id => [id, $(id)]));
-  let state = null, online = false, busy = false, pollBusy = false, sizing = false, adjustingVolume = false;
+  const ui = Object.fromEntries(['dashboard','connectionDot','connectionLabel','miniWindow','mirrorBadge','stage','stageStatus','sizeSlider','sizeValue','opacitySlider','opacityValue','audioMessage','mirrorVolumeControl','volumeSlider','volumeValue','resetButton','toast','stick','autoStartSwitch'].map(id => [id, $(id)]));
+  let state = null, online = false, busy = false, pollBusy = false, sizing = false, adjustingVolume = false, adjustingOpacity = false;
   let sequence = 0, applied = 0, toastTimer;
   const pending = new Map();
   let repeatTimer = null, holdDelay = null, heldButton = null, stickOrigin = null, vector = null;
@@ -55,6 +55,11 @@
     ui.volumeSlider.style.setProperty('--fill', value + '%');
     ui.volumeValue.value = value + '%';
   }
+  function opacityAppearance(value) {
+    ui.opacitySlider.style.setProperty('--fill', ((value - 12) / 88 * 100) + '%');
+    ui.opacityValue.value = value + '%';
+    ui.miniWindow.style.opacity = value / 100;
+  }
   function apply(data, id) {
     if (id < applied) return;
     applied = id; state = data;
@@ -72,6 +77,8 @@
     const edge = Number(ui.sizeSlider.value);
     sizePreview(edge, overlay);
     sliderAppearance(edge, overlay);
+    if (!adjustingOpacity && !pending.has('opacity')) ui.opacitySlider.value = Math.round(overlay.opacity * 100);
+    opacityAppearance(Number(ui.opacitySlider.value));
     setAudioMode(data.audio.source);
     if (!pending.has('autostart')) ui.autoStartSwitch.checked = Boolean(data.autoStart);
     ui.audioMessage.textContent = data.audio.message;
@@ -89,7 +96,7 @@
   }
   function enqueue(action, data) {
     if (!online) return;
-    if (action === 'reset') { pending.delete('move'); pending.delete('size'); }
+    if (action === 'reset') { pending.delete('move'); pending.delete('size'); pending.delete('opacity'); }
     if (action === 'move' && pending.has('move')) {
       const previous = pending.get('move');
       data = {dx: Math.max(-96, Math.min(96, previous.dx + data.dx)), dy: Math.max(-96, Math.min(96, previous.dy + data.dy))};
@@ -174,6 +181,17 @@
     enqueue('size', {longEdge});
   });
   ui.sizeSlider.addEventListener('change', () => { finishSizing(); enqueue('size', {longEdge: Number(ui.sizeSlider.value)}); });
+  ui.opacitySlider.addEventListener('pointerdown', () => { adjustingOpacity = true; });
+  ['pointerup','pointercancel','blur','lostpointercapture'].forEach(name => ui.opacitySlider.addEventListener(name, () => { adjustingOpacity = false; }));
+  ui.opacitySlider.addEventListener('input', () => {
+    const opacity = Number(ui.opacitySlider.value);
+    opacityAppearance(opacity);
+    enqueue('opacity', {opacity});
+  });
+  ui.opacitySlider.addEventListener('change', () => {
+    adjustingOpacity = false;
+    enqueue('opacity', {opacity: Number(ui.opacitySlider.value)});
+  });
   ui.volumeSlider.addEventListener('pointerdown', () => { adjustingVolume = true; });
   ['pointerup','pointercancel','blur','lostpointercapture'].forEach(name => ui.volumeSlider.addEventListener(name, () => { adjustingVolume = false; }));
   ui.volumeSlider.addEventListener('input', () => {

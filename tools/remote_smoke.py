@@ -63,6 +63,12 @@ def main():
         check('invalid_long_edge_rejected', call('/api/size', {'longEdge': 0})[0] == 400)
         check('ambiguous_size_rejected', call('/api/size', {'longEdge': 480, 'width': 480})[0] == 400)
         check('noninteger_long_edge_rejected', call('/api/size', {'longEdge': 480.5})[0] == 400)
+        for value in (11, 101, 55.5):
+            check('invalid_opacity_' + str(value), call('/api/opacity', {'opacity': value})[0] == 400)
+        for value in (12, 55, 100):
+            opacity_state = ok('/api/opacity', {'opacity': value})
+            check('opacity_alpha_' + str(value), abs(opacity_state['overlay']['opacity'] - value / 100) < .00001)
+            check('idle_opacity_hidden_' + str(value), not opacity_state['overlay']['visible'])
         check('invalid_volume_high_rejected', call('/api/volume', {'volume': 101})[0] == 400)
         check('invalid_volume_low_rejected', call('/api/volume', {'volume': -1})[0] == 400)
         check('noninteger_volume_rejected', call('/api/volume', {'volume': 30.5})[0] == 400)
@@ -82,6 +88,7 @@ def main():
         check('idle_controls_keep_overlay_hidden', not moved['overlay']['visible'])
         reset = ok('/api/reset', {})
         check('reset_small_corner', reset['overlay']['width'] <= 320 and reset['overlay']['x'] > 0)
+        check('reset_restores_full_opacity', abs(reset['overlay']['opacity'] - 1) < .00001)
         check('reset_touches_right_edge', reset['overlay']['x'] + reset['overlay']['width'] == reset['overlay']['screenWidth'])
         edge_sized = ok('/api/size', {'longEdge': 480})['overlay']
         check('resizing_docked_window_keeps_right_edge', edge_sized['x'] + edge_sized['width'] == edge_sized['screenWidth'])
@@ -113,6 +120,7 @@ def main():
                     if dx == 0 and dy == 0:
                         break
                     current = ok('/api/move', {'dx': max(-96, min(96, dx)), 'dy': max(-96, min(96, dy))})
+                ok('/api/opacity', {'opacity': round(original['overlay']['opacity'] * 100)})
                 ok('/api/audio', {'source': 'tv'})
                 ok('/api/volume', {'volume': original['audio'].get('volume', 100)})
                 ok('/api/autostart', {'enabled': original.get('autoStart', True)})

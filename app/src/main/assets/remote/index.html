@@ -29,7 +29,7 @@
     <main>
       <section class="intro"><p class="eyebrow">你的手机，就是遥控器</p><h1>小窗，随心放。</h1><p class="intro-copy">调好位置和声音，一起看更自在。</p></section>
       <div id="dashboard" class="dashboard" inert>
-        <section class="card preview-card" aria-label="窗口预览与大小">
+        <section class="card preview-card" aria-label="窗口预览、大小与透明度">
           <div class="card-heading"><h2><span class="section-dot"></span>电视上的小窗</h2><span id="mirrorBadge" class="badge">等待投屏</span></div>
           <div class="stage" id="stage" role="img" aria-label="电视画面与小窗位置示意">
             <div class="stage-glow"></div><div class="stage-label"><svg><use href="#i-tv"/></svg><span>电视画面</span></div>
@@ -40,6 +40,11 @@
             <input id="sizeSlider" type="range" min="240" max="1536" value="320" step="1" aria-describedby="sizeHelp">
             <div class="range-labels"><span>小一点</span><span>大一点</span></div>
             <p id="sizeHelp" class="hint">小窗比例跟随手机横竖屏，滑条调整最长边。停止投屏后自动隐藏。</p>
+          </div>
+          <div class="opacity-control"><div class="control-heading"><label for="opacitySlider">窗口透明度</label><output id="opacityValue" for="opacitySlider">100%</output></div>
+            <input id="opacitySlider" type="range" min="12" max="100" value="100" step="1" aria-describedby="opacityHelp">
+            <div class="range-labels"><span>更通透</span><span>更清晰</span></div>
+            <p id="opacityHelp" class="hint">数值越低越透明；100% 完全不透明。</p>
           </div>
         </section>
         <section class="card position-card" aria-labelledby="positionTitle">
